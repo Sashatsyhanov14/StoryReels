@@ -57,8 +57,8 @@ async function generateScript(userPrompt: string) {
   }));
 }
 
-// Real Flux rendering via Polza.ai
-async function generateImage(prompt: string, seed: string) {
+// Image generation via Polza.ai (OpenAI-compatible /v2/images/generations)
+async function generateImage(prompt: string, _seed: string) {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
     // Simulate API call delay
@@ -67,28 +67,31 @@ async function generateImage(prompt: string, seed: string) {
   }
 
   try {
-    const response = await fetch('https://polza.ai/api/v1/images/generations', {
+    const response = await fetch('https://polza.ai/api/v2/images/generations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'flux',
+        model: 'gpt-image-1',
         prompt: prompt,
         n: 1,
-        size: '1024x1024'
+        size: '1024x1024',
+        quality: 'medium'
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Image API error: ${response.status}`);
+      const errorBody = await response.text();
+      console.error(`Image API error body: ${errorBody}`);
+      throw new Error(`Image API error: ${response.status} - ${errorBody}`);
     }
 
     const result = await response.json();
     return result.data[0].url;
   } catch (err) {
-    console.error('Flux image generation failed, using fallback:', err);
+    console.error('Image generation failed, using fallback:', err);
     return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80`;
   }
 }
