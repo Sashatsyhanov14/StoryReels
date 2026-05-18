@@ -57,28 +57,26 @@ async function generateScript(userPrompt: string) {
   }));
 }
 
-// Image generation via Polza.ai (OpenAI-compatible /v2/images/generations)
+// Image generation via Polza.ai (google/gemini-2.5-flash-image — Nano Banana)
 async function generateImage(prompt: string, _seed: string) {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
-    // Simulate API call delay
     await new Promise(res => setTimeout(res, 300));
     return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80`;
   }
 
   try {
-    const response = await fetch('https://polza.ai/api/v2/images/generations', {
+    const response = await fetch('https://polza.ai/api/v1/images/generations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'gpt-image-1',
+        model: 'google/gemini-2.5-flash-image',
         prompt: prompt,
         n: 1,
-        size: '1024x1024',
-        quality: 'medium'
+        size: '1024x1024'
       })
     });
 
@@ -89,7 +87,15 @@ async function generateImage(prompt: string, _seed: string) {
     }
 
     const result = await response.json();
-    return result.data[0].url;
+    // Handle both sync response (data[0].url) and async pending response
+    if (result.data && result.data[0]) {
+      return result.data[0].url || result.data[0].b64_json;
+    }
+    // If async (pending status), fall back
+    if (result.status === 'pending' && result.id) {
+      console.log(`Image generation pending, task id: ${result.id}`);
+    }
+    throw new Error('Unexpected image API response format');
   } catch (err) {
     console.error('Image generation failed, using fallback:', err);
     return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80`;
