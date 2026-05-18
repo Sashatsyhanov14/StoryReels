@@ -87,17 +87,28 @@ async function generateImage(prompt: string) {
     }
 
     const result = await response.json();
+    console.log('Image API response:', JSON.stringify(result).substring(0, 500));
 
-    // Sync response — image ready immediately
-    if (result.data && result.data[0] && result.data[0].url) {
-      return result.data[0].url;
+    // Sync response — image ready immediately (various formats)
+    if (result.data && result.data[0]) {
+      if (result.data[0].url) return result.data[0].url;
+      if (result.data[0].b64_json) return `data:image/png;base64,${result.data[0].b64_json}`;
     }
 
-    // Async response — poll for completion
-    if (result.id && result.status === 'pending') {
-      return await pollImageResult(result.id, apiKey);
+    // Direct url field on result
+    if (result.url) return result.url;
+
+    // Async response — poll for completion (various field names)
+    const taskId = result.id || result.taskId || result.task_id;
+    const status = result.status;
+    if (taskId && (status === 'pending' || status === 'processing' || status === 'queued')) {
+      return await pollImageResult(taskId, apiKey);
     }
 
+    // If result has output directly
+    if (result.output && result.output.url) return result.output.url;
+
+    console.error('Unhandled image API response structure:', JSON.stringify(result).substring(0, 1000));
     throw new Error('Unexpected image API response');
   } catch (err) {
     console.error('Image generation failed, using fallback:', err);
