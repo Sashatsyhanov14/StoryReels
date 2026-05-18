@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         capture: true,
         confirmation: {
           type: 'redirect',
-          return_url: 'http://localhost:3000/payment/success', // Should be dynamic in production
+          return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/success`,
         },
         description: 'Покупка 1 токена',
         metadata: {
