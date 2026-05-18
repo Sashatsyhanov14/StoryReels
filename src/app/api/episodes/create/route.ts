@@ -57,7 +57,7 @@ async function generateScript(userPrompt: string) {
   }));
 }
 
-// Image generation via Polza.ai (google/gemini-2.5-flash-image — Nano Banana)
+// Image generation via Polza.ai (tongyi-mai/z-image — Z-Image)
 async function generateImage(prompt: string) {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
@@ -73,10 +73,9 @@ async function generateImage(prompt: string) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image',
+        model: 'tongyi-mai/z-image',
         prompt: prompt,
-        n: 1,
-        size: '1024x1024'
+        aspect_ratio: '9:16'
       })
     });
 
