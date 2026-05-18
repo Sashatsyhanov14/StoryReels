@@ -6,7 +6,7 @@ async function generateScript(userPrompt: string) {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
     console.warn('POLZA_API_KEY is not defined, using mock script.');
-    return Array.from({ length: 15 }, (_, i) => ({
+    return Array.from({ length: 5 }, (_, i) => ({
       image_prompt: `cyberpunk neon noir scene part ${i + 1} based on ${userPrompt}`,
       text: `Сцена ${i + 1}: Диалог или закадровый голос для "${userPrompt}"`
     }));
@@ -23,7 +23,7 @@ async function generateScript(userPrompt: string) {
       messages: [
         {
           role: 'system',
-          content: 'You are an elite screenwriter. Your task is to generate a compelling, episodic cinematic storyboard script based on the user\'s prompt. The narration and dialogue lines MUST be in Russian. You must output exactly 15 sequential scenes. For each scene, provide a highly detailed descriptive prompt in English for image generation (targeting Flux) and a brief narration/dialogue line in Russian (1-2 sentences). You MUST return your output in JSON format: a JSON array containing exactly 15 objects, each having the keys "image_prompt" and "text". Do not wrap in markdown, return raw JSON only.'
+          content: 'You are an elite screenwriter. Your task is to generate a compelling, episodic cinematic storyboard script based on the user\'s prompt. The narration and dialogue lines MUST be in Russian. You must output exactly 5 sequential scenes. For each scene, provide a highly detailed descriptive prompt in English for image generation and a brief narration/dialogue line in Russian (1-2 sentences). You MUST return your output in JSON format: a JSON array containing exactly 5 objects, each having the keys "image_prompt" and "text". Do not wrap in markdown, return raw JSON only.'
         },
         {
           role: 'user',
@@ -51,14 +51,14 @@ async function generateScript(userPrompt: string) {
     throw new Error('Invalid response structure from Polza script generation');
   }
   
-  return scenes.slice(0, 15).map((scene: any) => ({
+  return scenes.slice(0, 5).map((scene: any) => ({
     image_prompt: scene.image_prompt || scene.prompt || 'cinematic shot',
     text: scene.text || scene.dialogue || scene.narration || ''
   }));
 }
 
 // Image generation via Polza.ai (google/gemini-2.5-flash-image — Nano Banana)
-async function generateImage(prompt: string, _seed: string) {
+async function generateImage(prompt: string) {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
     await new Promise(res => setTimeout(res, 300));
@@ -83,23 +83,84 @@ async function generateImage(prompt: string, _seed: string) {
     if (!response.ok) {
       const errorBody = await response.text();
       console.error(`Image API error body: ${errorBody}`);
-      throw new Error(`Image API error: ${response.status} - ${errorBody}`);
+      throw new Error(`Image API error: ${response.status}`);
     }
 
     const result = await response.json();
-    // Handle both sync response (data[0].url) and async pending response
-    if (result.data && result.data[0]) {
-      return result.data[0].url || result.data[0].b64_json;
+
+    // Sync response — image ready immediately
+    if (result.data && result.data[0] && result.data[0].url) {
+      return result.data[0].url;
     }
-    // If async (pending status), fall back
-    if (result.status === 'pending' && result.id) {
-      console.log(`Image generation pending, task id: ${result.id}`);
+
+    // Async response — poll for completion
+    if (result.id && result.status === 'pending') {
+      return await pollImageResult(result.id, apiKey);
     }
-    throw new Error('Unexpected image API response format');
+
+    throw new Error('Unexpected image API response');
   } catch (err) {
     console.error('Image generation failed, using fallback:', err);
     return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80`;
   }
+}
+
+// Poll Polza.ai Media API for async image task completion
+async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 20): Promise<string> {
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(res => setTimeout(res, 3000)); // wait 3s between polls
+
+    try {
+      const response = await fetch(`https://polza.ai/api/v1/media/${taskId}`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+
+      if (!response.ok) continue;
+
+      const result = await response.json();
+
+      if (result.status === 'completed' && result.data && result.data[0]) {
+        return result.data[0].url;
+      }
+      if (result.status === 'failed') {
+        throw new Error(`Image task ${taskId} failed`);
+      }
+      // Still processing — continue polling
+    } catch (err) {
+      console.error(`Poll attempt ${i + 1} failed:`, err);
+    }
+  }
+  throw new Error(`Image task ${taskId} timed out after ${maxAttempts} attempts`);
+}
+
+// Process scenes in sequential batches to respect Polza.ai concurrency limits
+async function generateAssetsInBatches(
+  script: { image_prompt: string; text: string }[],
+  batchSize: number = 3
+) {
+  const allAssets: { imageUrl: string; audioUrl: string; text: string; imagePrompt: string }[] = [];
+
+  for (let i = 0; i < script.length; i += batchSize) {
+    const batch = script.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (frame) => {
+        const [imageUrl, audioUrl] = await Promise.all([
+          generateImage(frame.image_prompt),
+          generateAudio(frame.text)
+        ]);
+        return {
+          imageUrl,
+          audioUrl,
+          text: frame.text,
+          imagePrompt: frame.image_prompt
+        };
+      })
+    );
+    allAssets.push(...batchResults);
+    console.log(`Batch ${Math.floor(i / batchSize) + 1} complete (${allAssets.length}/${script.length} scenes)`);
+  }
+
+  return allAssets;
 }
 
 // Real TTS via Polza.ai (OpenAI compatible) returning a Base64 data URI for instant playback
@@ -181,27 +242,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create episode record' }, { status: 500 });
     }
 
-    // 3. Start generating assets (can be run in background, but keeping here for simplicity, with fallback)
+    // 3. Start generating assets in sequential batches (max 3 at a time to stay under Polza.ai limit)
     const generationPromise = async () => {
       try {
         const script = await generateScript(prompt || 'киберпанк приключение');
-        const seed = '888999'; // Fixed seed for consistency
         
-        // Parallel rendering of 15 pairs
-        const assetPromises = script.map(async (frame) => {
-          const [imageUrl, audioUrl] = await Promise.all([
-            generateImage(frame.image_prompt, seed),
-            generateAudio(frame.text)
-          ]);
-          return { 
-            imageUrl, 
-            audioUrl,
-            text: frame.text,
-            imagePrompt: frame.image_prompt
-          };
-        });
-
-        const assets = await Promise.all(assetPromises);
+        // Sequential batch rendering (3 scenes per batch)
+        const assets = await generateAssetsInBatches(script, 3);
 
         // Update episode as ready
         await supabaseAdmin
