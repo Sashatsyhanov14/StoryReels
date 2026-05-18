@@ -73,29 +73,8 @@ const INITIAL_EPISODES: Episode[] = [
       {
         imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80",
         audioUrl: "#",
-        text: "Глубоко в недрах Района 9 массивный серверный стек пульсировал искусственной жизнью.",
+        text: "Глубоко в недрах Райного 9 массивный серверный стек пульсировал искусственной жизнью.",
         imagePrompt: "futuristic server room with green and red laser grids",
-      },
-    ],
-  },
-  {
-    id: "ep-2",
-    title: "Эхо Призмы",
-    prompt: "Исследователь, открывающий гигантское светящееся кристаллическое древнее сооружение на далекой планете с фиолетовыми кольцами.",
-    status: "ready",
-    createdAt: "2 часа назад",
-    scenes: [
-      {
-        imageUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=600&q=80",
-        audioUrl: "#",
-        text: "Командир Вэнс смотрела вниз на планету с кольцами, чувствуя странный резонанс до глубины души.",
-        imagePrompt: "astronaut looking at cosmic ringed purple exoplanet",
-      },
-      {
-        imageUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
-        audioUrl: "#",
-        text: "Кристаллический шпиль вырвался из лавандовой почвы, напевая на частоте, неслышимой для человеческого уха.",
-        imagePrompt: "giant glowing crystal monolith on alien soil",
       },
     ],
   },
@@ -117,45 +96,134 @@ export default function Home() {
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // Initialize simulated user
+  // Audio system state
+  const [audio] = useState<HTMLAudioElement | null>(() => {
+    if (typeof window !== "undefined") {
+      return new Audio();
+    }
+    return null;
+  });
+
+  // Sync user and fetch real episodes on mount
   useEffect(() => {
     let savedUserId = localStorage.getItem("storyreels_user_id");
-    if (!savedUserId) {
-      savedUserId = `usr_${uuidv4().substring(0, 8)}`;
+    
+    // Ensure it is a valid UUID (not 'usr_xxxx')
+    if (!savedUserId || savedUserId.startsWith("usr_")) {
+      savedUserId = uuidv4();
       localStorage.setItem("storyreels_user_id", savedUserId);
     }
 
-    const savedTokens = localStorage.getItem("storyreels_tokens");
-    const parsedTokens = savedTokens ? parseInt(savedTokens, 10) : 5;
+    setUserId(savedUserId);
 
-    // Use a clean state setter that runs in the next tick to avoid cascading renders
-    const timer = setTimeout(() => {
-      setUserId(savedUserId);
-      setTokenBalance(parsedTokens);
-    }, 0);
+    const syncUser = async () => {
+      try {
+        const response = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: savedUserId }),
+        });
+        const data = await response.json();
+        if (data.tokenBalance !== undefined) {
+          setTokenBalance(data.tokenBalance);
+        }
+      } catch (err) {
+        console.error("Error syncing user:", err);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    const fetchEpisodes = async () => {
+      try {
+        const response = await fetch(`/api/episodes?userId=${savedUserId}`);
+        const data = await response.json();
+        if (data.episodes && data.episodes.length > 0) {
+          setEpisodes(data.episodes);
+          setSelectedEpisode(data.episodes[0]);
+        }
+      } catch (err) {
+        console.error("Error fetching episodes:", err);
+      }
+    };
+
+    syncUser();
+    fetchEpisodes();
   }, []);
 
-  // Handle auto-playback of scenes
+  // Handle actual audio playback
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    if (!audio) return;
+
+    // Stop current audio when changing scenes or pausing
+    audio.pause();
+
     if (isPlaying && selectedEpisode && selectedEpisode.scenes.length > 0) {
-      interval = setInterval(() => {
+      const activeScene = selectedEpisode.scenes[activeSceneIndex];
+      if (activeScene && activeScene.audioUrl && activeScene.audioUrl !== "#") {
+        audio.src = activeScene.audioUrl;
+        audio.play().catch((err) => {
+          console.warn("Audio play prevented:", err);
+        });
+      }
+    }
+  }, [isPlaying, activeSceneIndex, selectedEpisode, audio]);
+
+  // Audio completion listener for auto-advancing slides
+  useEffect(() => {
+    if (!audio) return;
+
+    const handleEnded = () => {
+      if (selectedEpisode && selectedEpisode.scenes.length > 0) {
         setActiveSceneIndex((prev) => {
           if (prev >= selectedEpisode.scenes.length - 1) {
-            return 0; // Loop back
+            setIsPlaying(false);
+            return 0;
           }
           return prev + 1;
         });
-      }, 4000); // Change scene every 4 seconds
+      }
+    };
+
+    audio.addEventListener("ended", handleEnded);
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, [audio, selectedEpisode]);
+
+  // Fallback timer for auto-advancing when audio is not available
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (isPlaying && selectedEpisode && selectedEpisode.scenes.length > 0) {
+      const activeScene = selectedEpisode.scenes[activeSceneIndex];
+      const hasAudio = activeScene && activeScene.audioUrl && activeScene.audioUrl !== "#";
+
+      if (!hasAudio) {
+        timer = setTimeout(() => {
+          setActiveSceneIndex((prev) => {
+            if (prev >= selectedEpisode.scenes.length - 1) {
+              setIsPlaying(false);
+              return 0;
+            }
+            return prev + 1;
+          });
+        }, 4500); // 4.5 seconds per scene fallback
+      }
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, selectedEpisode]);
+
+    return () => clearTimeout(timer);
+  }, [isPlaying, activeSceneIndex, selectedEpisode]);
+
+  // Pause audio on unmount or pause
+  useEffect(() => {
+    return () => {
+      if (audio) {
+        audio.pause();
+      }
+    };
+  }, [audio]);
 
   const saveTokens = (newBalance: number) => {
     setTokenBalance(newBalance);
-    localStorage.setItem("storyreels_tokens", newBalance.toString());
   };
 
   const handleGenerate = async (e: React.FormEvent) => {
@@ -167,68 +235,75 @@ export default function Home() {
       return;
     }
 
-    // Start local animation sequence
     setIsGenerating(true);
-    saveTokens(tokenBalance - 1);
-
-    // Mock steps
     setGenStep("script");
-    setGenerationProgress(10);
-    
-    await new Promise((r) => setTimeout(r, 1200));
-    setGenStep("keyframes");
-    setGenerationProgress(40);
-    
-    await new Promise((r) => setTimeout(r, 1500));
-    setGenStep("voiceover");
-    setGenerationProgress(70);
-    
-    await new Promise((r) => setTimeout(r, 1200));
-    setGenStep("compiling");
-    setGenerationProgress(90);
-    
-    await new Promise((r) => setTimeout(r, 1000));
-    
-    // Create new episode
-    const newEpisode: Episode = {
-      id: `ep-${uuidv4().substring(0, 8)}`,
-      title: prompt.substring(0, 20) + (prompt.length > 20 ? "..." : ""),
-      prompt: prompt,
-      status: "ready",
-      createdAt: "Только что",
-      scenes: [
-        {
-          imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-          audioUrl: "#",
-          text: `В мире, созданном вашим воображением, начинается история: "${prompt}"`,
-          imagePrompt: prompt,
-        },
-        {
-          imageUrl: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80",
-          audioUrl: "#",
-          text: "Элементы выстраиваются воедино, материализуя яркую последовательность событий на холсте искусственного интеллекта.",
-          imagePrompt: "abstract colorful energy flow cinematic render",
-        },
-        {
-          imageUrl: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=600&q=80",
-          audioUrl: "#",
-          text: "Финальные штрихи складываются вместе, запечатлевая это повествование в архивах StoryReels.",
-          imagePrompt: "neon frame cinematic cybernetic digital portrait",
-        }
-      ],
-    };
+    setGenerationProgress(5);
 
-    setEpisodes([newEpisode, ...episodes]);
-    setSelectedEpisode(newEpisode);
-    setActiveSceneIndex(0);
-    setPrompt("");
-    setIsGenerating(false);
-    setGenStep("idle");
-    setGenerationProgress(0);
+    // Simulate progress updates for a smoother user experience
+    const progressInterval = setInterval(() => {
+      setGenerationProgress((prev) => {
+        if (prev < 95) return prev + 1;
+        return prev;
+      });
+    }, 1000);
+
+    // Dynamic stages simulation based on elapsed time (backend API is being evaluated in background)
+    const stage1 = setTimeout(() => setGenStep("keyframes"), 8000);
+    const stage2 = setTimeout(() => setGenStep("voiceover"), 22000);
+    const stage3 = setTimeout(() => setGenStep("compiling"), 42000);
+
+    try {
+      const response = await fetch("/api/episodes/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, prompt }),
+      });
+
+      clearInterval(progressInterval);
+      clearTimeout(stage1);
+      clearTimeout(stage2);
+      clearTimeout(stage3);
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || "Не удалось создать эпизод");
+      }
+
+      const data = await response.json();
+
+      setGenStep("compiling");
+      setGenerationProgress(100);
+
+      // Refresh list from DB
+      const listResponse = await fetch(`/api/episodes?userId=${userId}`);
+      const listData = await listResponse.json();
+
+      if (listData.episodes && listData.episodes.length > 0) {
+        setEpisodes(listData.episodes);
+        const newEp = listData.episodes.find((ep: any) => ep.id === data.episodeId) || listData.episodes[0];
+        setSelectedEpisode(newEp);
+        setActiveSceneIndex(0);
+      }
+
+      // Decrement balance locally
+      setTokenBalance((prev) => Math.max(0, prev - 1));
+      setPrompt("");
+
+    } catch (err: any) {
+      console.error(err);
+      alert(`Ошибка генерации: ${err.message || err}`);
+    } finally {
+      clearInterval(progressInterval);
+      clearTimeout(stage1);
+      clearTimeout(stage2);
+      clearTimeout(stage3);
+      setIsGenerating(false);
+      setGenStep("idle");
+      setGenerationProgress(0);
+    }
   };
 
   const handleTopUp = async () => {
-    // In local demo, we simulate purchasing tokens or trigger Yookassa mock endpoint
     try {
       const response = await fetch("/api/yookassa/create", {
         method: "POST",
@@ -236,20 +311,43 @@ export default function Home() {
         body: JSON.stringify({ userId }),
       });
       const data = await response.json();
+      
       if (data.confirmation_url) {
-        // Open payment link
         window.open(data.confirmation_url, "_blank");
+
+        // Polling check to sync tokens once they complete sandbox payment
+        let attempts = 0;
+        const interval = setInterval(async () => {
+          attempts++;
+          const res = await fetch("/api/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId }),
+          });
+          const userData = await res.json();
+          if (userData.tokenBalance > tokenBalance || attempts > 20) {
+            setTokenBalance(userData.tokenBalance);
+            clearInterval(interval);
+          }
+        }, 3000);
       } else {
-        // Simulate immediate credit for easy local sandbox testing
-        const bonus = 5;
-        saveTokens(tokenBalance + bonus);
-        alert(`Песочница: Начислено +${bonus} токенов на ваш аккаунт!`);
+        // Fallback for direct sandbox testing
+        const addRes = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, addTokens: 5 }),
+        });
+        const addData = await addRes.json();
+        if (addData.tokenBalance !== undefined) {
+          setTokenBalance(addData.tokenBalance);
+          alert("Песочница: Начислено +5 токенов на ваш баланс в базе данных!");
+        }
       }
-    } catch {
-      // Sandbox fallback
-      const bonus = 5;
-      saveTokens(tokenBalance + bonus);
-      alert(`Песочница: Начислено +${bonus} токенов на ваш аккаунт!`);
+    } catch (err) {
+      console.error("Top up failed, doing client fallback:", err);
+      // Client-only local fallback if backend is offline
+      saveTokens(tokenBalance + 5);
+      alert("Начислено +5 токенов (клиентский демо-режим)!");
     }
   };
 
@@ -275,7 +373,7 @@ export default function Home() {
             {/* User Account Info */}
             <div className="hidden items-center gap-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-2 sm:flex">
               <div className="flex flex-col text-right">
-                <span className="text-xs font-medium text-zinc-400">{userId || "Подключение..."}</span>
+                <span className="text-[9px] font-mono text-zinc-500 truncate max-w-[100px]">{userId || "Подключение..."}</span>
                 <span className="text-[10px] text-purple-400 font-semibold">Тестовый режим</span>
               </div>
               <div className="h-8 w-[1px] bg-zinc-800"></div>
@@ -400,7 +498,7 @@ export default function Home() {
                 </div>
 
                 <p className="text-xs text-zinc-500 max-w-xs">
-                  Этот процесс имитирует создание сценария (LLM) и генерацию ресурсов сцен (Flux & Audio) в пайплайнах базы данных StoryReels.
+                  Этот процесс задействует Polza.ai LLM для сценария, Flux для качественных изображений и ИИ-TTS для озвучивания рилса.
                 </p>
               </div>
             )}
@@ -466,7 +564,9 @@ export default function Home() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setIsPlaying(!isPlaying)}
+                    onClick={() => {
+                      setIsPlaying(!isPlaying);
+                    }}
                     className="flex h-10 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-xs font-bold text-zinc-950 hover:bg-white"
                   >
                     {isPlaying ? "⏸️ Пауза" : "▶️ Запустить"}
@@ -491,7 +591,9 @@ export default function Home() {
                       <div className={`h-2.5 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse" : ""}`}></div>
                       <div className={`h-4.5 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse delay-75" : ""}`}></div>
                       <div className={`h-3 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse delay-150" : ""}`}></div>
-                      <span className="text-[10px] font-mono text-zinc-300">Озвучка ИИ синхронизирована</span>
+                      <span className="text-[10px] font-mono text-zinc-300">
+                        {selectedEpisode.scenes[activeSceneIndex].audioUrl !== "#" ? "Озвучка ИИ воспроизводится" : "Режим без аудио"}
+                      </span>
                     </div>
 
                     {/* Progress Dots */}
@@ -561,7 +663,7 @@ export default function Home() {
                       <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{ep.createdAt}</p>
                     </div>
                     <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-400 uppercase">
-                      Готов
+                      {ep.status === "ready" ? "Готов" : ep.status === "pending" ? "Создается" : "Ошибка"}
                     </span>
                   </div>
 
