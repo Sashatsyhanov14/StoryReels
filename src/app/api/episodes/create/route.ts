@@ -8,7 +8,7 @@ async function generateScript(userPrompt: string) {
     console.warn('POLZA_API_KEY is not defined, using mock script.');
     return Array.from({ length: 15 }, (_, i) => ({
       image_prompt: `cyberpunk neon noir scene part ${i + 1} based on ${userPrompt}`,
-      text: `Line of dialogue or narration ${i + 1} for ${userPrompt}`
+      text: `Сцена ${i + 1}: Диалог или закадровый голос для "${userPrompt}"`
     }));
   }
 
@@ -23,7 +23,7 @@ async function generateScript(userPrompt: string) {
       messages: [
         {
           role: 'system',
-          content: 'You are an elite screenwriter. Your task is to generate a compelling, episodic cinematic storyboard script based on the user\'s prompt. You must output exactly 15 sequential scenes. For each scene, provide a highly detailed descriptive prompt for image generation (targeting Flux) and a brief narration/dialogue line (1-2 sentences). You MUST return your output in JSON format: a JSON array containing exactly 15 objects, each having the keys "image_prompt" and "text". Do not wrap in markdown, return raw JSON only.'
+          content: 'You are an elite screenwriter. Your task is to generate a compelling, episodic cinematic storyboard script based on the user\'s prompt. The narration and dialogue lines MUST be in Russian. You must output exactly 15 sequential scenes. For each scene, provide a highly detailed descriptive prompt in English for image generation (targeting Flux) and a brief narration/dialogue line in Russian (1-2 sentences). You MUST return your output in JSON format: a JSON array containing exactly 15 objects, each having the keys "image_prompt" and "text". Do not wrap in markdown, return raw JSON only.'
         },
         {
           role: 'user',
@@ -175,7 +175,7 @@ export async function POST(request: Request) {
     // 3. Start generating assets (can be run in background, but keeping here for simplicity, with fallback)
     const generationPromise = async () => {
       try {
-        const script = await generateScript(prompt || 'cyberpunk adventure');
+        const script = await generateScript(prompt || 'киберпанк приключение');
         const seed = '888999'; // Fixed seed for consistency
         
         // Parallel rendering of 15 pairs

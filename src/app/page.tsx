@@ -21,30 +21,30 @@ interface Episode {
 
 const PRESET_PROMPTS = [
   {
-    title: "Cyberpunk Detective",
+    title: "Детектив в стиле Киберпанк",
     emoji: "🕵️‍♂️",
-    prompt: "A cyberpunk investigator tracking a digital ghost through the neon-drenched rainy alleys of Neo-Tokyo.",
+    prompt: "Киберпанк-детектив, выслеживающий цифрового призрака на залитых неоном дождливых улочках Нео-Токио.",
     color: "from-fuchsia-600 to-pink-600",
     theme: "cyberpunk",
   },
   {
-    title: "Cosmic Odyssey",
+    title: "Космическая Одиссея",
     emoji: "🚀",
-    prompt: "An explorer discovering a massive, glowing crystalline ancient structure on a distant purple-ringed exoplanet.",
+    prompt: "Исследователь, открывающий гигантское светящееся кристаллическое древнее сооружение на далекой планете с фиолетовыми кольцами.",
     color: "from-cyan-500 to-blue-600",
     theme: "space",
   },
   {
-    title: "Medieval Sorcery",
+    title: "Средневековое Волшебство",
     emoji: "🧙‍♂️",
-    prompt: "A young wizard apprentice finding a hidden glowing spellbook inside a dark, ancient library deep within a mountain.",
+    prompt: "Молодой ученик волшебника, находящий спрятанную светящуюся книгу заклинаний в темной древней библиотеке глубоко в горах.",
     color: "from-emerald-500 to-teal-600",
     theme: "fantasy",
   },
   {
-    title: "Synthwave Sunset",
+    title: "Закат в стиле Синтвейв",
     emoji: "🌅",
-    prompt: "A retro-futuristic sports car driving eternally towards a massive glowing wireframe grid sun on a pink highway.",
+    prompt: "Ретро-футуристический спортивный автомобиль, вечно мчащийся к гигантскому светящемуся сетчатому солнцу по розовому шоссе.",
     color: "from-amber-500 to-rose-600",
     theme: "retro",
   },
@@ -53,48 +53,48 @@ const PRESET_PROMPTS = [
 const INITIAL_EPISODES: Episode[] = [
   {
     id: "ep-1",
-    title: "Neo-Tokyo Enigma",
-    prompt: "A cyberpunk investigator tracking a digital ghost through the neon-drenched rainy alleys of Neo-Tokyo.",
+    title: "Загадка Нео-Токио",
+    prompt: "Киберпанк-детектив, выслеживающий цифрового призрака на залитых неоном дождливых улочках Нео-Токио.",
     status: "ready",
-    createdAt: "10 mins ago",
+    createdAt: "10 мин. назад",
     scenes: [
       {
         imageUrl: "https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?auto=format&fit=crop&w=600&q=80",
         audioUrl: "#",
-        text: "The neon lights of Neo-Tokyo bled through the perpetual rain, illuminating a city built on secrets.",
+        text: "Неоновые огни Нео-Токио пробивались сквозь бесконечный дождь, освещая город, построенный на секретах.",
         imagePrompt: "cyberpunk neon noir rainy alleyways",
       },
       {
         imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80",
         audioUrl: "#",
-        text: "Detective Kael scanned the digital residues left behind by the elusive phantom coder.",
+        text: "Детектив Каэль сканировал цифровые следы, оставленные неуловимым фантомным кодером.",
         imagePrompt: "cyberpunk detective examining glowing holographic clues",
       },
       {
         imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80",
         audioUrl: "#",
-        text: "Deep in the underbelly of District 9, a massive server array pulsed with artificial life.",
+        text: "Глубоко в недрах Района 9 массивный серверный стек пульсировал искусственной жизнью.",
         imagePrompt: "futuristic server room with green and red laser grids",
       },
     ],
   },
   {
     id: "ep-2",
-    title: "Echoes of the Prism",
-    prompt: "An explorer discovering a massive, glowing crystalline ancient structure on a distant purple-ringed exoplanet.",
+    title: "Эхо Призмы",
+    prompt: "Исследователь, открывающий гигантское светящееся кристаллическое древнее сооружение на далекой планете с фиолетовыми кольцами.",
     status: "ready",
-    createdAt: "2 hours ago",
+    createdAt: "2 часа назад",
     scenes: [
       {
         imageUrl: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=600&q=80",
         audioUrl: "#",
-        text: "Commander Vance looked down at the ringed planet, feeling the strange resonance in her bones.",
+        text: "Командир Вэнс смотрела вниз на планету с кольцами, чувствуя странный резонанс до глубины души.",
         imagePrompt: "astronaut looking at cosmic ringed purple exoplanet",
       },
       {
         imageUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
         audioUrl: "#",
-        text: "A crystalline spire erupted from the lavender soil, singing in a frequency unheard by human ears.",
+        text: "Кристаллический шпиль вырвался из лавандовой почвы, напевая на частоте, неслышимой для человеческого уха.",
         imagePrompt: "giant glowing crystal monolith on alien soil",
       },
     ],
@@ -163,7 +163,7 @@ export default function Home() {
     if (!prompt.trim()) return;
 
     if (tokenBalance < 1) {
-      alert("Insufficient tokens! Please top up your balance below.");
+      alert("Недостаточно токенов! Пожалуйста, пополните баланс ниже.");
       return;
     }
 
@@ -195,24 +195,24 @@ export default function Home() {
       title: prompt.substring(0, 20) + (prompt.length > 20 ? "..." : ""),
       prompt: prompt,
       status: "ready",
-      createdAt: "Just now",
+      createdAt: "Только что",
       scenes: [
         {
           imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
           audioUrl: "#",
-          text: `In a world defined by your imagination, the story begins: "${prompt}"`,
+          text: `В мире, созданном вашим воображением, начинается история: "${prompt}"`,
           imagePrompt: prompt,
         },
         {
           imageUrl: "https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?auto=format&fit=crop&w=600&q=80",
           audioUrl: "#",
-          text: "The elements align, materializing a brilliant sequence of events under the AI's loom.",
+          text: "Элементы выстраиваются воедино, материализуя яркую последовательность событий на холсте искусственного интеллекта.",
           imagePrompt: "abstract colorful energy flow cinematic render",
         },
         {
           imageUrl: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=600&q=80",
           audioUrl: "#",
-          text: "The final resolution comes together, etching this narrative into the archives of StoryReels.",
+          text: "Финальные штрихи складываются вместе, запечатлевая это повествование в архивах StoryReels.",
           imagePrompt: "neon frame cinematic cybernetic digital portrait",
         }
       ],
@@ -243,13 +243,13 @@ export default function Home() {
         // Simulate immediate credit for easy local sandbox testing
         const bonus = 5;
         saveTokens(tokenBalance + bonus);
-        alert(`Sandbox: Added +${bonus} tokens directly to your account!`);
+        alert(`Песочница: Начислено +${bonus} токенов на ваш аккаунт!`);
       }
     } catch {
       // Sandbox fallback
       const bonus = 5;
       saveTokens(tokenBalance + bonus);
-      alert(`Sandbox: Added +${bonus} tokens directly to your account!`);
+      alert(`Песочница: Начислено +${bonus} токенов на ваш аккаунт!`);
     }
   };
 
@@ -267,7 +267,7 @@ export default function Home() {
               <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">
                 Story<span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Reels</span>
               </h1>
-              <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">AI Episodic Studio</p>
+              <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">ИИ Студия Историй</p>
             </div>
           </div>
 
@@ -275,13 +275,13 @@ export default function Home() {
             {/* User Account Info */}
             <div className="hidden items-center gap-3 rounded-2xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-2 sm:flex">
               <div className="flex flex-col text-right">
-                <span className="text-xs font-medium text-zinc-400">{userId || "Connecting..."}</span>
-                <span className="text-[10px] text-purple-400 font-semibold">Sandbox User</span>
+                <span className="text-xs font-medium text-zinc-400">{userId || "Подключение..."}</span>
+                <span className="text-[10px] text-purple-400 font-semibold">Тестовый режим</span>
               </div>
               <div className="h-8 w-[1px] bg-zinc-800"></div>
               <div className="flex items-center gap-2">
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-500/20 text-xs text-purple-400">🪙</div>
-                <span className="text-sm font-bold text-white">{tokenBalance} tokens</span>
+                <span className="text-sm font-bold text-white">{tokenBalance} токенов</span>
               </div>
             </div>
 
@@ -289,7 +289,7 @@ export default function Home() {
               onClick={handleTopUp}
               className="relative flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-purple-600/30 transition-all duration-300 hover:scale-[1.03] hover:shadow-purple-600/50 active:scale-[0.98]"
             >
-              Top Up
+              Пополнить
             </button>
           </div>
         </div>
@@ -305,10 +305,10 @@ export default function Home() {
             <div className="absolute -top-12 -right-12 h-24 w-24 rounded-full bg-purple-500/10 blur-xl"></div>
             
             <h2 className="mb-2 text-lg font-bold text-white flex items-center gap-2">
-              <span className="text-purple-400">✨</span> Launch an AI Episode
+              <span className="text-purple-400">✨</span> Запустить ИИ-Эпизод
             </h2>
             <p className="mb-6 text-sm text-zinc-400">
-              Describe the story you want to bring to life. Our neural pipelines will write the screenplay, voice the characters, and illustrate the sequence.
+              Опишите историю, которую хотите воплотить в жизнь. Наши нейросети напишут сценарий, озвучат персонажей и иллюстрируют каждую сцену.
             </p>
 
             <form onSubmit={handleGenerate} className="flex flex-col gap-4">
@@ -316,7 +316,7 @@ export default function Home() {
                 <textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="e.g. A cybernetic explorer lands on a vibrant purple planet inhabited by light beings..."
+                  placeholder="Например: Кибернетический исследователь приземляется на яркую фиолетовую планету, населенную существами из чистого света..."
                   className="h-32 w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-950/80 p-4 text-sm text-zinc-100 placeholder-zinc-500 transition-colors focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
                   maxLength={500}
                   disabled={isGenerating}
@@ -328,7 +328,7 @@ export default function Home() {
 
               {/* Preset prompt pills */}
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold text-zinc-500">Or use a custom preset:</span>
+                <span className="text-xs font-semibold text-zinc-500">Или выберите готовый пресет:</span>
                 <div className="grid grid-cols-2 gap-2">
                   {PRESET_PROMPTS.map((preset) => (
                     <button
@@ -357,13 +357,13 @@ export default function Home() {
                 {isGenerating ? (
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-950 border-t-transparent"></div>
-                    <span>Generating Reel...</span>
+                    <span>Создание рилса...</span>
                   </div>
                 ) : (
                   <>
-                    <span>Generate Episode</span>
+                    <span>Создать эпизод</span>
                     <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-semibold text-purple-400">
-                      Cost: 1 Token
+                      Стоимость: 1 Токен
                     </span>
                   </>
                 )}
@@ -378,16 +378,16 @@ export default function Home() {
                   <div className="absolute inset-0 flex items-center justify-center text-xl">🎬</div>
                 </div>
 
-                <h3 className="text-lg font-bold text-white mb-2">Neural Studio is Active</h3>
+                <h3 className="text-lg font-bold text-white mb-2">Нейросеть генерирует контент</h3>
                 
                 {/* Generation Stage Tracker */}
                 <div className="w-full max-w-xs mb-6">
                   <div className="flex justify-between text-xs text-zinc-400 mb-2 font-mono">
                     <span>
-                      {genStep === "script" && "📝 Drafting Script..."}
-                      {genStep === "keyframes" && "🎨 Rendering Scenes..."}
-                      {genStep === "voiceover" && "🎙️ Synthesizing Voiceover..."}
-                      {genStep === "compiling" && "📦 Packaging Reels..."}
+                      {genStep === "script" && "📝 Написание сценария..."}
+                      {genStep === "keyframes" && "🎨 Генерация изображений..."}
+                      {genStep === "voiceover" && "🎙️ Синтез озвучки..."}
+                      {genStep === "compiling" && "📦 Сборка эпизода..."}
                     </span>
                     <span>{generationProgress}%</span>
                   </div>
@@ -400,7 +400,7 @@ export default function Home() {
                 </div>
 
                 <p className="text-xs text-zinc-500 max-w-xs">
-                  This process simulates script construction (LLM) and scene asset rendering (Flux & Audio) inside StoryReels database pipelines.
+                  Этот процесс имитирует создание сценария (LLM) и генерацию ресурсов сцен (Flux & Audio) в пайплайнах базы данных StoryReels.
                 </p>
               </div>
             )}
@@ -409,16 +409,16 @@ export default function Home() {
           {/* Pricing & YooKassa Top-up */}
           <section className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6">
             <h2 className="mb-2 text-base font-bold text-white flex items-center gap-2">
-              <span>🪙</span> Tokens & Monetization Sandbox
+              <span>🪙</span> Токены и демо-версия оплаты
             </h2>
             <p className="mb-4 text-xs text-zinc-400">
-              Each episode generation deducts 1 token. Real payment operations are wired securely through YooKassa gateway.
+              Создание каждого эпизода расходует 1 токен. Реальные платежные операции безопасно обрабатываются через шлюз ЮKassa.
             </p>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="flex flex-col items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 text-center">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Starter</span>
-                <span className="my-2 text-2xl font-black text-white">1 <span className="text-xs text-zinc-400">Token</span></span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Стартовый</span>
+                <span className="my-2 text-2xl font-black text-white">1 <span className="text-xs text-zinc-400">Токен</span></span>
                 <button
                   onClick={handleTopUp}
                   className="w-full rounded-xl bg-zinc-800 py-1.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700"
@@ -427,9 +427,9 @@ export default function Home() {
                 </button>
               </div>
               <div className="relative flex flex-col items-center justify-between rounded-2xl border border-purple-500/50 bg-purple-950/10 p-4 text-center">
-                <div className="absolute -top-2.5 rounded-full bg-purple-600 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">Popular</div>
-                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Creator</span>
-                <span className="my-2 text-2xl font-black text-white">5 <span className="text-xs text-zinc-400">Tokens</span></span>
+                <div className="absolute -top-2.5 rounded-full bg-purple-600 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">Популярно</div>
+                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Автор</span>
+                <span className="my-2 text-2xl font-black text-white">5 <span className="text-xs text-zinc-400">Токенов</span></span>
                 <button
                   onClick={handleTopUp}
                   className="w-full rounded-xl bg-purple-600 py-1.5 text-[10px] font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-600/20"
@@ -438,8 +438,8 @@ export default function Home() {
                 </button>
               </div>
               <div className="flex flex-col items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 text-center">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Studio</span>
-                <span className="my-2 text-2xl font-black text-white">15 <span className="text-xs text-zinc-400">Tokens</span></span>
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Студия</span>
+                <span className="my-2 text-2xl font-black text-white">15 <span className="text-xs text-zinc-400">Токенов</span></span>
                 <button
                   onClick={handleTopUp}
                   className="w-full rounded-xl bg-zinc-800 py-1.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700"
@@ -460,7 +460,7 @@ export default function Home() {
               <div className="p-5 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
                 <div>
                   <span className="rounded-full bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-purple-400 uppercase">
-                    Active Episode
+                    Текущий Эпизод
                   </span>
                   <h3 className="mt-1.5 text-lg font-bold text-white">{selectedEpisode.title}</h3>
                 </div>
@@ -469,7 +469,7 @@ export default function Home() {
                     onClick={() => setIsPlaying(!isPlaying)}
                     className="flex h-10 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-xs font-bold text-zinc-950 hover:bg-white"
                   >
-                    {isPlaying ? "⏸️ Pause" : "▶️ Play Reel"}
+                    {isPlaying ? "⏸️ Пауза" : "▶️ Запустить"}
                   </button>
                 </div>
               </div>
@@ -491,7 +491,7 @@ export default function Home() {
                       <div className={`h-2.5 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse" : ""}`}></div>
                       <div className={`h-4.5 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse delay-75" : ""}`}></div>
                       <div className={`h-3 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse delay-150" : ""}`}></div>
-                      <span className="text-[10px] font-mono text-zinc-300">TTS Audio synced</span>
+                      <span className="text-[10px] font-mono text-zinc-300">Озвучка ИИ синхронизирована</span>
                     </div>
 
                     {/* Progress Dots */}
@@ -516,26 +516,26 @@ export default function Home() {
                         &ldquo;{selectedEpisode.scenes[activeSceneIndex].text}&rdquo;
                       </p>
                       <p className="mt-2 text-[9px] uppercase tracking-wider text-purple-400 text-center font-bold font-mono">
-                        Scene {activeSceneIndex + 1} of {selectedEpisode.scenes.length} — Prompt: {selectedEpisode.scenes[activeSceneIndex].imagePrompt}
+                        Сцена {activeSceneIndex + 1} из {selectedEpisode.scenes.length} — Промпт: {selectedEpisode.scenes[activeSceneIndex].imagePrompt}
                       </p>
                     </div>
                   </>
                 ) : (
-                  <p className="text-sm text-zinc-500">No scenes in this episode</p>
+                  <p className="text-sm text-zinc-500">В этом эпизоде нет сцен</p>
                 )}
               </div>
             </section>
           ) : (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-800 p-12 text-center bg-zinc-900/10">
               <span className="text-3xl mb-3">🎬</span>
-              <p className="text-sm text-zinc-400">Select or generate an episode on the left to start watching</p>
+              <p className="text-sm text-zinc-400">Выберите или создайте эпизод слева, чтобы начать просмотр</p>
             </div>
           )}
 
           {/* Episode Gallery */}
           <section className="flex flex-col gap-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <span>🗂️</span> Archive of Episodes
+              <span>🗂️</span> Архив Эпизодов
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -561,7 +561,7 @@ export default function Home() {
                       <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{ep.createdAt}</p>
                     </div>
                     <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-400 uppercase">
-                      Ready
+                      Готов
                     </span>
                   </div>
 
@@ -571,10 +571,10 @@ export default function Home() {
 
                   <div className="flex items-center justify-between mt-auto pt-3 border-t border-zinc-800/60 w-full text-[10px] text-zinc-500 font-semibold">
                     <span className="flex items-center gap-1">
-                      🎞️ {ep.scenes.length} Scenes
+                      🎞️ {ep.scenes.length} сцен
                     </span>
                     <span className="text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Watch Reel →
+                      Смотреть рилс →
                     </span>
                   </div>
                 </button>
@@ -587,11 +587,11 @@ export default function Home() {
       {/* Footer */}
       <footer className="mt-auto border-t border-zinc-800 bg-zinc-950 py-8 text-center text-xs text-zinc-500">
         <div className="mx-auto max-w-7xl px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© {new Date().getFullYear()} StoryReels. All rights reserved. Powered by Next.js & Supabase.</p>
+          <p>© {new Date().getFullYear()} StoryReels. Все права защищены. Работает на Next.js и Supabase.</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-zinc-300">Privacy Policy</a>
-            <a href="#" className="hover:text-zinc-300">Terms of Service</a>
-            <a href="#" className="hover:text-zinc-300">API Documentation</a>
+            <a href="#" className="hover:text-zinc-300">Политика конфиденциальности</a>
+            <a href="#" className="hover:text-zinc-300">Условия использования</a>
+            <a href="#" className="hover:text-zinc-300">Документация API</a>
           </div>
         </div>
       </footer>
