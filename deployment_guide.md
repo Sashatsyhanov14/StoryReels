@@ -95,6 +95,7 @@ return_url: 'http://localhost:3000/payment/success',
 | `SUPABASE_SERVICE_ROLE_KEY` | Секретный ключ service_role из Supabase | `ey......` |
 | `YOOKASSA_SHOP_ID` | Идентификатор магазина ЮKassa | `123456` |
 | `YOOKASSA_SECRET_KEY` | Секретный API-ключ ЮKassa | `live_xxxxxx...` или `test_xxxxxx...` |
+| `POLZA_API_KEY` | Секретный ключ API от Polza.ai | `plz_xxxxxx...` |
 | `NEXT_PUBLIC_APP_URL` | Адрес вашего развернутого сайта | `https://storyreels-app.vercel.app` |
 
 3. Запустите деплой (`vercel --prod` or via Git push to branch `main`).
