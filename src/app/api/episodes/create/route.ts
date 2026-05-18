@@ -66,7 +66,7 @@ async function generateImage(prompt: string) {
   }
 
   try {
-    const response = await fetch('https://polza.ai/api/v1/images/generations', {
+    const response = await fetch('https://polza.ai/api/v1/media', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -74,8 +74,10 @@ async function generateImage(prompt: string) {
       },
       body: JSON.stringify({
         model: 'tongyi-mai/z-image',
-        prompt: prompt,
-        aspect_ratio: '9:16'
+        input: {
+          prompt: prompt,
+          aspect_ratio: '9:16'
+        }
       })
     });
 
@@ -89,13 +91,13 @@ async function generateImage(prompt: string) {
     console.log('Image API response:', JSON.stringify(result));
 
     // Sync response — image ready immediately
-    if (result.data && result.data[0]) {
-      if (result.data[0].url) return result.data[0].url;
-      if (result.data[0].b64_json) return `data:image/png;base64,${result.data[0].b64_json}`;
+    if (result.data) {
+      if (result.data.url) return result.data.url;
+      if (Array.isArray(result.data) && result.data[0] && result.data[0].url) return result.data[0].url;
     }
 
-    // Async response — Polza.ai returns {requestId: "gen_xxx"}
-    const taskId = result.requestId || result.id || result.taskId || result.task_id;
+    // Async response — Polza.ai returns status: pending with id
+    const taskId = result.id || result.requestId || result.taskId || result.task_id;
     if (taskId) {
       console.log(`Image generation async, polling task: ${taskId}`);
       return await pollImageResult(taskId, apiKey);
