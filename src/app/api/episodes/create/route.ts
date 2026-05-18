@@ -87,28 +87,22 @@ async function generateImage(prompt: string) {
     }
 
     const result = await response.json();
-    console.log('Image API response:', JSON.stringify(result).substring(0, 500));
+    console.log('Image API response:', JSON.stringify(result));
 
-    // Sync response — image ready immediately (various formats)
+    // Sync response — image ready immediately
     if (result.data && result.data[0]) {
       if (result.data[0].url) return result.data[0].url;
       if (result.data[0].b64_json) return `data:image/png;base64,${result.data[0].b64_json}`;
     }
 
-    // Direct url field on result
-    if (result.url) return result.url;
-
-    // Async response — poll for completion (various field names)
-    const taskId = result.id || result.taskId || result.task_id;
-    const status = result.status;
-    if (taskId && (status === 'pending' || status === 'processing' || status === 'queued')) {
+    // Async response — Polza.ai returns {requestId: "gen_xxx"}
+    const taskId = result.requestId || result.id || result.taskId || result.task_id;
+    if (taskId) {
+      console.log(`Image generation async, polling task: ${taskId}`);
       return await pollImageResult(taskId, apiKey);
     }
 
-    // If result has output directly
-    if (result.output && result.output.url) return result.output.url;
-
-    console.error('Unhandled image API response structure:', JSON.stringify(result).substring(0, 1000));
+    console.error('Unhandled image API response:', JSON.stringify(result));
     throw new Error('Unexpected image API response');
   } catch (err) {
     console.error('Image generation failed, using fallback:', err);
@@ -117,7 +111,7 @@ async function generateImage(prompt: string) {
 }
 
 // Poll Polza.ai Media API for async image task completion
-async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 20): Promise<string> {
+async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30): Promise<string> {
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(res => setTimeout(res, 3000)); // wait 3s between polls
 
@@ -126,19 +120,31 @@ async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 20)
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
 
-      if (!response.ok) continue;
+      if (!response.ok) {
+        console.warn(`Poll ${i + 1}: HTTP ${response.status}`);
+        continue;
+      }
 
       const result = await response.json();
+      console.log(`Poll ${i + 1} for ${taskId}: status=${result.status}`);
 
-      if (result.status === 'completed' && result.data && result.data[0]) {
-        return result.data[0].url;
+      if (result.status === 'completed') {
+        // data can be an object {url: "..."} or an array [{url: "..."}]
+        if (result.data) {
+          if (result.data.url) return result.data.url;
+          if (Array.isArray(result.data) && result.data[0] && result.data[0].url) return result.data[0].url;
+        }
+        console.error('Completed but no URL found:', JSON.stringify(result));
+        throw new Error('Completed but missing image URL');
       }
       if (result.status === 'failed') {
-        throw new Error(`Image task ${taskId} failed`);
+        console.error(`Task ${taskId} failed:`, result.error);
+        throw new Error(`Image task failed: ${result.error?.message || 'unknown'}`);
       }
-      // Still processing — continue polling
+      // pending / processing — continue polling
     } catch (err) {
-      console.error(`Poll attempt ${i + 1} failed:`, err);
+      if ((err as Error).message?.includes('failed') || (err as Error).message?.includes('missing')) throw err;
+      console.error(`Poll attempt ${i + 1} error:`, err);
     }
   }
   throw new Error(`Image task ${taskId} timed out after ${maxAttempts} attempts`);
