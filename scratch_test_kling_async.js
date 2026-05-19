@@ -15,22 +15,34 @@ envContent.split('\n').forEach(line => {
 const apiKey = env['POLZA_API_KEY'];
 
 async function run() {
-  const taskId = 'gen_2168000902163468289';
-  console.log(`Polling task ${taskId}...`);
+  console.log('Sending async request to Polza.ai media API with Kling...');
   try {
-    const response = await fetch(`https://polza.ai/api/v1/media/${taskId}`, {
+    const response = await fetch('https://polza.ai/api/v1/media', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-      }
+      },
+      body: JSON.stringify({
+        model: 'kling/v2.5-turbo',
+        input: {
+          prompt: "cyberpunk car driving fast on a wet neon highway, highly dynamic, 4k",
+          aspect_ratio: "9:16",
+          resolution: "480p",
+          duration: "3s"
+        },
+        async: true
+      })
     });
 
     if (!response.ok) {
-      console.error(`HTTP ${response.status}`);
+      const text = await response.text();
+      console.error(`HTTP ${response.status} Error: ${text}`);
       return;
     }
 
     const result = await response.json();
-    console.log('Poll Result:', JSON.stringify(result, null, 2));
+    console.log('Success:', JSON.stringify(result, null, 2));
   } catch (err) {
     console.error('Fetch error:', err);
   }

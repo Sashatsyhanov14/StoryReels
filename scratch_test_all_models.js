@@ -15,24 +15,11 @@ envContent.split('\n').forEach(line => {
 const apiKey = env['POLZA_API_KEY'];
 
 async function run() {
-  const taskId = 'gen_2168000902163468289';
-  console.log(`Polling task ${taskId}...`);
-  try {
-    const response = await fetch(`https://polza.ai/api/v1/media/${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`HTTP ${response.status}`);
-      return;
-    }
-
-    const result = await response.json();
-    console.log('Poll Result:', JSON.stringify(result, null, 2));
-  } catch (err) {
-    console.error('Fetch error:', err);
-  }
+  const res = await fetch('https://polza.ai/api/v1/models', {
+    headers: { 'Authorization': `Bearer ${apiKey}` }
+  });
+  const data = await res.json();
+  console.log('ALL AVAILABLE MODELS:');
+  data.data.forEach(m => console.log(m.id));
 }
 run();
