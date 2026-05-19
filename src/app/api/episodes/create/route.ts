@@ -69,6 +69,8 @@ async function generateImage(prompt: string) {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     const response = await fetch('https://polza.ai/api/v1/media', {
       method: 'POST',
       headers: {
@@ -81,8 +83,10 @@ async function generateImage(prompt: string) {
           prompt: prompt,
           aspect_ratio: '9:16'
         }
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -120,9 +124,13 @@ async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30)
     await new Promise(res => setTimeout(res, 3000)); // wait 3s between polls
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       const response = await fetch(`https://polza.ai/api/v1/media/${taskId}`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` }
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         console.warn(`Poll ${i + 1}: HTTP ${response.status}`);
@@ -216,6 +224,8 @@ async function generateAudio(text: string) {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     const response = await fetch('https://polza.ai/api/v1/audio/speech', {
       method: 'POST',
       headers: {
@@ -226,8 +236,10 @@ async function generateAudio(text: string) {
         model: 'tts-1',
         input: text,
         voice: 'alloy'
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`TTS failed with status: ${response.status}`);
