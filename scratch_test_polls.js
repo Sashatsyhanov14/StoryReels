@@ -23,7 +23,7 @@ async function poll(taskId) {
 }
 
 async function run() {
-  const veoTask = 'gen_2168000902163468289';
+  const veoTask = 'gen_2168023737418256385';
   const klingTask = 'gen_2168001072022032385';
   
   const veoRes = await poll(veoTask);
