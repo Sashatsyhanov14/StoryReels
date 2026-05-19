@@ -233,10 +233,11 @@ async function generateAudio(text: string) {
       throw new Error(`TTS failed with status: ${response.status}`);
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const base64Audio = buffer.toString('base64');
-    return `data:audio/mp3;base64,${base64Audio}`;
+    const result = await response.json();
+    if (result && result.audio) {
+      return `data:audio/mp3;base64,${result.audio}`;
+    }
+    throw new Error('TTS response missing audio data');
   } catch (err) {
     console.error('Audio generation failed, using fallback:', err);
     return '#';
