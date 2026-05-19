@@ -668,18 +668,30 @@ export default function Home() {
                   </div>
                 ) : selectedEpisode.scenes.length > 0 ? (
                   <>
-                    {/* Scene Image */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      key={activeSceneIndex}
-                      src={selectedEpisode.scenes[activeSceneIndex].imageUrl}
-                      alt={selectedEpisode.scenes[activeSceneIndex].text}
-                      className={`h-full w-full object-cover transition-all duration-700 ease-in-out ${
-                        isPlaying 
-                          ? (activeSceneIndex % 2 === 0 ? "animate-ken-burns-in" : "animate-ken-burns-out")
-                          : ""
-                      }`}
-                    />
+                    {/* Scene Media (Image or Video) */}
+                    {selectedEpisode.scenes[activeSceneIndex].imageUrl.endsWith('.mp4') || selectedEpisode.scenes[activeSceneIndex].imageUrl.includes('video') ? (
+                      <video
+                        key={activeSceneIndex}
+                        src={selectedEpisode.scenes[activeSceneIndex].imageUrl}
+                        className="h-full w-full object-cover"
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                      />
+                    ) : (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img
+                        key={activeSceneIndex}
+                        src={selectedEpisode.scenes[activeSceneIndex].imageUrl}
+                        alt={selectedEpisode.scenes[activeSceneIndex].text}
+                        className={`h-full w-full object-cover transition-all duration-700 ease-in-out ${
+                          isPlaying 
+                            ? (activeSceneIndex % 2 === 0 ? "animate-ken-burns-in" : "animate-ken-burns-out")
+                            : ""
+                        }`}
+                      />
+                    )}
                     
                     {/* Glassmorphic Audio Player Visualizer Bar */}
                     <div className="absolute top-4 right-4 flex items-center gap-1.5 rounded-lg bg-black/40 px-2.5 py-1.5 backdrop-blur-md border border-white/10">
