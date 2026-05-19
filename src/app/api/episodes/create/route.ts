@@ -71,21 +71,18 @@ async function generateImage(prompt: string) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch('https://polza.ai/api/v1/media', {
+    const response = await fetch('https://polza.ai/api/v1/images/generations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'kling/v2.5-turbo',
-        input: {
-          prompt: prompt,
-          aspect_ratio: '9:16',
-          resolution: '480p',
-          duration: '3s'
-        },
-        async: true
+        model: 'tongyi-mai/z-image',
+        prompt: prompt,
+        n: 1,
+        size: '9:16',
+        resolution: '1K'
       }),
       signal: controller.signal
     });
@@ -93,14 +90,14 @@ async function generateImage(prompt: string) {
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Video API error body: ${errorBody}`);
-      throw new Error(`Video API error: ${response.status}`);
+      console.error(`Image API error body: ${errorBody}`);
+      throw new Error(`Image API error: ${response.status}`);
     }
 
     const result = await response.json();
-    console.log('Video API response:', JSON.stringify(result));
+    console.log('Image API response:', JSON.stringify(result));
 
-    // Sync response (fallback if returned directly)
+    // Sync response — image ready immediately
     if (result.data) {
       if (result.data.url) return result.data.url;
       if (Array.isArray(result.data) && result.data[0] && result.data[0].url) return result.data[0].url;
@@ -109,20 +106,20 @@ async function generateImage(prompt: string) {
     // Async response — Polza.ai returns status: pending with id
     const taskId = result.id || result.requestId || result.taskId || result.task_id;
     if (taskId) {
-      console.log(`Video generation async, polling task: ${taskId}`);
+      console.log(`Image generation async, polling task: ${taskId}`);
       return await pollImageResult(taskId, apiKey);
     }
 
-    console.error('Unhandled video API response:', JSON.stringify(result));
-    throw new Error('Unexpected video API response');
+    console.error('Unhandled image API response:', JSON.stringify(result));
+    throw new Error('Unexpected image API response');
   } catch (err) {
-    console.error('Video generation failed, using fallback:', err);
+    console.error('Image generation failed, using fallback:', err);
     return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80`;
   }
 }
 
-// Poll Polza.ai Media API for async video/image task completion
-async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 50): Promise<string> {
+// Poll Polza.ai Media API for async image task completion
+async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30): Promise<string> {
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise(res => setTimeout(res, 3000)); // wait 3s between polls
 
