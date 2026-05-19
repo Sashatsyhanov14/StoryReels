@@ -71,18 +71,18 @@ async function generateImage(prompt: string) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
-    const response = await fetch('https://polza.ai/api/v1/media', {
+    const response = await fetch('https://polza.ai/api/v1/images/generations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'tongyi-mai/z-image',
-        input: {
-          prompt: prompt,
-          aspect_ratio: '9:16'
-        }
+        model: 'black-forest-labs/flux.2-pro',
+        prompt: prompt,
+        n: 1,
+        size: '9:16',
+        resolution: '1K'
       }),
       signal: controller.signal
     });
