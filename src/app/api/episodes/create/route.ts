@@ -162,11 +162,11 @@ async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30)
   throw new Error(`Image task ${taskId} timed out after ${maxAttempts} attempts`);
 }
 
-// Process scenes in sequential batches to respect Polza.ai concurrency limits, updating progress in Supabase
+// Process scenes in parallel (1 batch) to avoid Vercel 60s execution timeout limit
 async function generateAssetsInBatches(
   script: { image_prompt: string; text: string }[],
   episodeId: string,
-  batchSize: number = 3
+  batchSize: number = 15
 ) {
   const allAssets: { imageUrl: string; audioUrl: string; text: string; imagePrompt: string }[] = [];
   const totalBatches = Math.ceil(script.length / batchSize);
