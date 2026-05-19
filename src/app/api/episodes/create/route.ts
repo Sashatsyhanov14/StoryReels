@@ -1,6 +1,9 @@
 import { NextResponse, after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+export const maxDuration = 300; // 5 minutes execution timeout (max allowed on Vercel Hobby)
+export const dynamic = 'force-dynamic';
+
 // Real Polza.ai LLM generation using openai/gpt-4o-mini
 async function generateScript(userPrompt: string) {
   const apiKey = process.env.POLZA_API_KEY;
