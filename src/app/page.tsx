@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 
 interface Scene {
@@ -17,6 +17,8 @@ interface Episode {
   status: "pending" | "ready" | "failed";
   scenes: Scene[];
   createdAt: string;
+  progress?: number;
+  step?: "idle" | "script" | "keyframes" | "voiceover" | "compiling";
 }
 
 const PRESET_PROMPTS = [
@@ -104,6 +106,90 @@ export default function Home() {
     return null;
   });
 
+  // Ref for background polling interval
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Poll database for a pending episode's real progress
+  const startPolling = (episodeId: string, currentUserId: string) => {
+    setIsGenerating(true);
+    setGenStep("script");
+    setGenerationProgress(5);
+
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/episodes?userId=${currentUserId}`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const episodesList: Episode[] = data.episodes || [];
+        setEpisodes(episodesList);
+
+        const currentEp = episodesList.find((ep) => ep.id === episodeId);
+        if (!currentEp) {
+          clearInterval(interval);
+          setIsGenerating(false);
+          setGenStep("idle");
+          setGenerationProgress(0);
+          return;
+        }
+
+        // Keep selected episode sync'ed if it's the pending one
+        setSelectedEpisode((prev) => {
+          if (prev && prev.id === episodeId) {
+            return currentEp;
+          }
+          return prev;
+        });
+
+        if (currentEp.status === "ready") {
+          clearInterval(interval);
+          setIsGenerating(false);
+          setGenStep("idle");
+          setGenerationProgress(0);
+          setSelectedEpisode(currentEp);
+          setActiveSceneIndex(0);
+        } else if (currentEp.status === "failed") {
+          clearInterval(interval);
+          setIsGenerating(false);
+          setGenStep("idle");
+          setGenerationProgress(0);
+          alert("Ошибка генерации: не удалось завершить создание эпизода.");
+          
+          // Re-sync balance
+          try {
+            const userResponse = await fetch("/api/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userId: currentUserId }),
+            });
+            const userData = await userResponse.json();
+            if (userData.tokenBalance !== undefined) {
+              setTokenBalance(userData.tokenBalance);
+            }
+          } catch (e) {
+            console.error("Failed to sync user token balance", e);
+          }
+        } else {
+          // Still pending, update real progress
+          if (currentEp.progress !== undefined) {
+            setGenerationProgress(currentEp.progress);
+          }
+          if (currentEp.step) {
+            setGenStep(currentEp.step);
+          }
+        }
+      } catch (err) {
+        console.error("Error polling episode status:", err);
+      }
+    }, 3000);
+
+    pollingIntervalRef.current = interval;
+  };
+
   // Sync user and fetch real episodes on mount
   useEffect(() => {
     let savedUserId = localStorage.getItem("storyreels_user_id");
@@ -138,7 +224,15 @@ export default function Home() {
         const data = await response.json();
         if (data.episodes && data.episodes.length > 0) {
           setEpisodes(data.episodes);
-          setSelectedEpisode(data.episodes[0]);
+          
+          // Check if there is any pending episode and resume polling
+          const pendingEpisode = data.episodes.find((ep: any) => ep.status === "pending");
+          if (pendingEpisode) {
+            setSelectedEpisode(pendingEpisode);
+            startPolling(pendingEpisode.id, savedUserId);
+          } else {
+            setSelectedEpisode(data.episodes[0]);
+          }
         }
       } catch (err) {
         console.error("Error fetching episodes:", err);
@@ -213,11 +307,14 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [isPlaying, activeSceneIndex, selectedEpisode]);
 
-  // Pause audio on unmount or pause
+  // Pause audio and clear intervals on unmount
   useEffect(() => {
     return () => {
       if (audio) {
         audio.pause();
+      }
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
       }
     };
   }, [audio]);
@@ -239,19 +336,6 @@ export default function Home() {
     setGenStep("script");
     setGenerationProgress(5);
 
-    // Simulate progress updates for a smoother user experience
-    const progressInterval = setInterval(() => {
-      setGenerationProgress((prev) => {
-        if (prev < 95) return prev + 1;
-        return prev;
-      });
-    }, 1000);
-
-    // Dynamic stages simulation based on elapsed time (backend API is being evaluated in background)
-    const stage1 = setTimeout(() => setGenStep("keyframes"), 8000);
-    const stage2 = setTimeout(() => setGenStep("voiceover"), 22000);
-    const stage3 = setTimeout(() => setGenStep("compiling"), 42000);
-
     try {
       const response = await fetch("/api/episodes/create", {
         method: "POST",
@@ -259,44 +343,23 @@ export default function Home() {
         body: JSON.stringify({ userId, prompt }),
       });
 
-      clearInterval(progressInterval);
-      clearTimeout(stage1);
-      clearTimeout(stage2);
-      clearTimeout(stage3);
-
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.error || "Не удалось создать эпизод");
+        throw new Error(errData.error || "Не удалось запустить создание эпизода");
       }
 
       const data = await response.json();
 
-      setGenStep("compiling");
-      setGenerationProgress(100);
-
-      // Refresh list from DB
-      const listResponse = await fetch(`/api/episodes?userId=${userId}`);
-      const listData = await listResponse.json();
-
-      if (listData.episodes && listData.episodes.length > 0) {
-        setEpisodes(listData.episodes);
-        const newEp = listData.episodes.find((ep: any) => ep.id === data.episodeId) || listData.episodes[0];
-        setSelectedEpisode(newEp);
-        setActiveSceneIndex(0);
-      }
-
-      // Decrement balance locally
+      // Decrement balance locally immediately
       setTokenBalance((prev) => Math.max(0, prev - 1));
       setPrompt("");
+
+      // Start database polling to track progress
+      startPolling(data.episodeId, userId);
 
     } catch (err: any) {
       console.error(err);
       alert(`Ошибка генерации: ${err.message || err}`);
-    } finally {
-      clearInterval(progressInterval);
-      clearTimeout(stage1);
-      clearTimeout(stage2);
-      clearTimeout(stage3);
       setIsGenerating(false);
       setGenStep("idle");
       setGenerationProgress(0);
@@ -576,7 +639,34 @@ export default function Home() {
 
               {/* Player Body */}
               <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden flex items-center justify-center">
-                {selectedEpisode.scenes.length > 0 ? (
+                {selectedEpisode.status === "pending" ? (
+                  <div className="flex flex-col items-center justify-center p-6 text-center animate-pulse">
+                    <div className="relative mb-4">
+                      <div className="h-12 w-12 rounded-full border-3 border-purple-500/20 border-t-purple-500 animate-spin"></div>
+                      <div className="absolute inset-0 flex items-center justify-center text-lg">🎬</div>
+                    </div>
+                    <p className="text-sm font-bold text-white mb-1">Создание эпизода...</p>
+                    <p className="text-xs text-zinc-400">
+                      {selectedEpisode.step === "script" && "📝 Написание сценария..."}
+                      {selectedEpisode.step === "keyframes" && "🎨 Генерация изображений..."}
+                      {selectedEpisode.step === "voiceover" && "🎙️ Синтез озвучки..."}
+                      {selectedEpisode.step === "compiling" && "📦 Сборка эпизода..."}
+                      {(!selectedEpisode.step || selectedEpisode.step === "idle") && "Запуск..."}
+                    </p>
+                    <div className="mt-4 w-48 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500" 
+                        style={{ width: `${selectedEpisode.progress || 5}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : selectedEpisode.status === "failed" ? (
+                  <div className="flex flex-col items-center justify-center p-6 text-center">
+                    <span className="text-3xl mb-2">❌</span>
+                    <p className="text-sm font-bold text-red-400">Ошибка генерации</p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-xs">Не удалось создать этот эпизод. Токен был возвращен на ваш баланс.</p>
+                  </div>
+                ) : selectedEpisode.scenes.length > 0 ? (
                   <>
                     {/* Scene Image */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -662,7 +752,13 @@ export default function Home() {
                       </h4>
                       <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{ep.createdAt}</p>
                     </div>
-                    <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[9px] font-bold text-emerald-400 uppercase">
+                    <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${
+                      ep.status === "ready"
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        : ep.status === "pending"
+                        ? "bg-amber-500/10 border-amber-500/20 text-amber-400 animate-pulse"
+                        : "bg-red-500/10 border-red-500/20 text-red-400"
+                    }`}>
                       {ep.status === "ready" ? "Готов" : ep.status === "pending" ? "Создается" : "Ошибка"}
                     </span>
                   </div>

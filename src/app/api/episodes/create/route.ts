@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 // Real Polza.ai LLM generation using openai/gpt-4o-mini
@@ -151,15 +151,38 @@ async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30)
   throw new Error(`Image task ${taskId} timed out after ${maxAttempts} attempts`);
 }
 
-// Process scenes in sequential batches to respect Polza.ai concurrency limits
+// Process scenes in sequential batches to respect Polza.ai concurrency limits, updating progress in Supabase
 async function generateAssetsInBatches(
   script: { image_prompt: string; text: string }[],
+  episodeId: string,
   batchSize: number = 3
 ) {
   const allAssets: { imageUrl: string; audioUrl: string; text: string; imagePrompt: string }[] = [];
+  const totalBatches = Math.ceil(script.length / batchSize);
 
   for (let i = 0; i < script.length; i += batchSize) {
+    const batchIndex = Math.floor(i / batchSize);
     const batch = script.slice(i, i + batchSize);
+    
+    // Map batchIndex to steps: keyframes -> voiceover -> compiling
+    let step: 'keyframes' | 'voiceover' | 'compiling' = 'keyframes';
+    if (batchIndex >= 3) {
+      step = 'compiling';
+    } else if (batchIndex >= 1) {
+      step = 'voiceover';
+    }
+    
+    // Calculate progress: starting at 20% after script, ending at 95% before final ready status.
+    const progress = Math.min(95, Math.round(20 + (batchIndex / totalBatches) * 75));
+
+    // Update DB with current progress and step before starting the batch
+    await supabaseAdmin
+      .from('episodes')
+      .update({
+        assets_json: { progress, step }
+      })
+      .eq('id', episodeId);
+
     const batchResults = await Promise.all(
       batch.map(async (frame) => {
         const [imageUrl, audioUrl] = await Promise.all([
@@ -175,7 +198,7 @@ async function generateAssetsInBatches(
       })
     );
     allAssets.push(...batchResults);
-    console.log(`Batch ${Math.floor(i / batchSize) + 1} complete (${allAssets.length}/${script.length} scenes)`);
+    console.log(`Batch ${batchIndex + 1} complete (${allAssets.length}/${script.length} scenes)`);
   }
 
   return allAssets;
@@ -247,6 +270,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: userId,
         status: 'pending',
+        assets_json: { progress: 5, step: 'script' }
       })
       .select()
       .single();
@@ -260,13 +284,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create episode record' }, { status: 500 });
     }
 
-    // 3. Start generating assets in sequential batches (max 3 at a time to stay under Polza.ai limit)
-    const generationPromise = async () => {
-      try {
+    // 3. Start generating assets in the background using Next.js after() API
+    after(async () => {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Generation timeout')), 600000); // 10 minutes timeout for async background generation
+      });
+
+      const generationPromise = async () => {
         const script = await generateScript(prompt || 'киберпанк приключение');
         
+        // Update progress after script is done
+        await supabaseAdmin
+          .from('episodes')
+          .update({
+            assets_json: { progress: 20, step: 'keyframes' }
+          })
+          .eq('id', episode.id);
+
         // Sequential batch rendering (3 scenes per batch)
-        const assets = await generateAssetsInBatches(script, 3);
+        const assets = await generateAssetsInBatches(script, episode.id, 3);
 
         // Update episode as ready
         await supabaseAdmin
@@ -276,45 +312,35 @@ export async function POST(request: Request) {
             assets_json: assets
           })
           .eq('id', episode.id);
+      };
 
+      try {
+        await Promise.race([generationPromise(), timeoutPromise]);
       } catch (err) {
-        console.error('Generation failed:', err);
-        // Fallback: set failed and return token
+        console.error('Generation failed or timed out:', err);
+        // Fallback: set failed
         await supabaseAdmin
           .from('episodes')
-          .update({ status: 'failed' })
+          .update({ 
+            status: 'failed',
+            assets_json: []
+          })
           .eq('id', episode.id);
         
-        await supabaseAdmin
+        // Refund token
+        const { data: currentUser } = await supabaseAdmin
           .from('users')
-          .update({ token_balance: user.token_balance }) // Restore the exact balance we knew
-          .eq('id', userId);
+          .select('token_balance')
+          .eq('id', userId)
+          .single();
+        if (currentUser) {
+          await supabaseAdmin
+            .from('users')
+            .update({ token_balance: currentUser.token_balance + 1 })
+            .eq('id', userId);
+        }
       }
-    };
-
-    // Timeout mechanism (increased to 120 seconds for API latency)
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Generation timeout')), 120000);
     });
-
-    // Run generation
-    try {
-      await Promise.race([generationPromise(), timeoutPromise]);
-    } catch (err) {
-      console.error(err instanceof Error ? err.message : 'Unknown error');
-      // Fallback
-      await supabaseAdmin
-        .from('episodes')
-        .update({ status: 'failed' })
-        .eq('id', episode.id);
-        
-      await supabaseAdmin
-        .from('users')
-        .update({ token_balance: user.token_balance }) // Restore the exact balance we knew
-        .eq('id', userId);
-        
-      return NextResponse.json({ error: 'Generation failed or timed out' }, { status: 504 });
-    }
 
     return NextResponse.json({ success: true, episodeId: episode.id });
 
