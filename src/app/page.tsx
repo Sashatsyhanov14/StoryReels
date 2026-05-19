@@ -671,9 +671,14 @@ export default function Home() {
                     {/* Scene Image */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
+                      key={activeSceneIndex}
                       src={selectedEpisode.scenes[activeSceneIndex].imageUrl}
                       alt={selectedEpisode.scenes[activeSceneIndex].text}
-                      className="h-full w-full object-cover transition-all duration-700 ease-in-out"
+                      className={`h-full w-full object-cover transition-all duration-700 ease-in-out ${
+                        isPlaying 
+                          ? (activeSceneIndex % 2 === 0 ? "animate-ken-burns-in" : "animate-ken-burns-out")
+                          : ""
+                      }`}
                     />
                     
                     {/* Glassmorphic Audio Player Visualizer Bar */}

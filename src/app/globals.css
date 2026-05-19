@@ -24,3 +24,30 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes kenburns-in {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.15) translate(-1%, -1%);
+  }
+}
+
+@keyframes kenburns-out {
+  0% {
+    transform: scale(1.18) translate(1%, 1%);
+  }
+  100% {
+    transform: scale(1.03) translate(0, 0);
+  }
+}
+
+.animate-ken-burns-in {
+  animation: kenburns-in 8s ease-out forwards;
+}
+
+.animate-ken-burns-out {
+  animation: kenburns-out 8s ease-out forwards;
+}
+
