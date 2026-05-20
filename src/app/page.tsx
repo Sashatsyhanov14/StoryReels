@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { supabase } from "@/lib/supabase-client";
 
 interface Scene {
   imageUrl: string;
@@ -93,6 +94,81 @@ export default function Home() {
   // Psychological Landing Flow State
   const [isRegistered, setIsRegistered] = useState(false);
   const [landingStep, setLandingStep] = useState<"input" | "generating" | "teaser">("input");
+  
+  // Auth state
+  const [email, setEmail] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
+  // Check auth session on load
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setIsRegistered(true);
+        setUserId(session.user.email || session.user.id);
+      }
+    };
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setIsRegistered(true);
+        setUserId(session.user.email || session.user.id);
+      } else {
+        setIsRegistered(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleOAuthLogin = async (provider: 'google' | 'vk') => {
+    try {
+      setAuthLoading(true);
+      await supabase.auth.signInWithOAuth({
+        provider: provider as any,
+        options: {
+          redirectTo: typeof window !== 'undefined' ? window.location.origin : '',
+        }
+      });
+    } catch (error) {
+      console.error(error);
+      alert("Ошибка при входе через " + provider);
+      setAuthLoading(false);
+    }
+  };
+
+  const handleMagicLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    try {
+      setAuthLoading(true);
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '',
+        }
+      });
+      if (error) throw error;
+      alert("Волшебная ссылка отправлена на " + email + ". Проверьте почту!");
+      setEmail("");
+    } catch (error) {
+      console.error(error);
+      alert("Ошибка отправки Magic Link");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleTelegramLogin = () => {
+    setAuthLoading(true);
+    // Имитация авторизации через Telegram Mini App / Widget
+    setTimeout(() => {
+      setIsRegistered(true);
+      setTokenBalance(15);
+      setAuthLoading(false);
+    }, 1200);
+  };
 
   useEffect(() => {
     if (!isRegistered && landingStep === "generating") {
@@ -552,23 +628,73 @@ export default function Home() {
                <img src="https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?auto=format&fit=crop&w=600&q=80" alt="blur" className="w-full h-full object-cover blur-md scale-110" />
                
                {/* Curiosity Gap Paywall Overlay */}
-               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                  <span className="text-5xl mb-4 drop-shadow-lg">🔒</span>
-                  <h3 className="text-xl font-bold text-white mb-2">Сценарий просто огонь!</h3>
-                  <p className="text-xs text-zinc-300 mb-6 leading-relaxed">
-                    Чтобы посмотреть видео, скачать его без водяного знака и получить 5 токенов для новых генераций — войдите через Telegram.
+               <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center">
+                  <span className="text-4xl mb-2 drop-shadow-lg animate-bounce">🔒</span>
+                  <h3 className="text-lg font-bold text-white mb-1">Сценарий просто огонь!</h3>
+                  <p className="text-[10px] text-zinc-300 mb-4 leading-relaxed max-w-[250px]">
+                    Войдите, чтобы досмотреть видео, убрать вотермарку и получить <strong className="text-purple-400">10 токенов</strong> бонусом.
                   </p>
-                  <button 
-                    onClick={() => {
-                      setIsRegistered(true);
-                      setTokenBalance(5);
-                    }}
-                    className="w-full bg-gradient-to-r from-[#2AABEE] to-[#229ED9] hover:brightness-110 text-white font-bold py-3.5 rounded-xl mb-4 transition-all shadow-lg flex items-center justify-center gap-2"
-                  >
-                    <span>Войти через Telegram</span>
-                  </button>
-                  <p className="text-[10px] text-red-400 font-mono font-bold animate-pulse flex items-center gap-1 mt-2">
-                    ⚠️ Черновик удалится через 14:59
+                  
+                  {/* Auth Methods */}
+                  <div className="w-full flex flex-col gap-2 relative">
+                    {authLoading && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 backdrop-blur-sm rounded-xl">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent"></div>
+                      </div>
+                    )}
+                    
+                    <div className="flex gap-2">
+                      {/* Telegram */}
+                      <button 
+                        onClick={handleTelegramLogin}
+                        disabled={authLoading}
+                        className="flex-1 bg-[#2AABEE] hover:bg-[#229ED9] text-white font-bold py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center group"
+                        title="Войти через Telegram"
+                      >
+                        <span className="text-xl group-hover:scale-110 transition-transform">✈️</span>
+                      </button>
+                      {/* Google */}
+                      <button 
+                        onClick={() => handleOAuthLogin('google')}
+                        disabled={authLoading}
+                        className="flex-1 bg-white hover:bg-zinc-100 text-zinc-900 font-bold py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center group"
+                        title="Войти через Google"
+                      >
+                        <span className="text-xl font-serif font-black group-hover:scale-110 transition-transform">G</span>
+                      </button>
+                      {/* VK */}
+                      <button 
+                        onClick={() => handleOAuthLogin('vk')}
+                        disabled={authLoading}
+                        className="flex-1 bg-[#0077FF] hover:bg-[#0066EE] text-white font-bold py-2.5 rounded-xl transition-all shadow-lg flex items-center justify-center group"
+                        title="Войти через VK"
+                      >
+                        <span className="text-sm tracking-tighter group-hover:scale-110 transition-transform">VK</span>
+                      </button>
+                    </div>
+                    
+                    {/* Magic Link */}
+                    <form onSubmit={handleMagicLink} className="relative mt-1">
+                      <input 
+                        type="email" 
+                        placeholder="Email для входа (Magic Link)" 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={authLoading}
+                        className="w-full bg-black/50 border border-zinc-700/50 text-white placeholder-zinc-500 text-[10px] px-4 py-3 rounded-xl focus:outline-none focus:border-purple-500 transition-colors"
+                      />
+                      <button 
+                        type="submit" 
+                        disabled={authLoading || !email.includes('@')}
+                        className="absolute right-1 top-1 bottom-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 px-3 rounded-lg text-[10px] font-bold text-white transition-colors"
+                      >
+                        Войти
+                      </button>
+                    </form>
+                  </div>
+
+                  <p className="text-[9px] text-red-400 font-mono font-bold animate-pulse flex items-center gap-1 mt-4">
+                    ⚠️ Черновик будет удален через 14:59
                   </p>
                </div>
             </div>
