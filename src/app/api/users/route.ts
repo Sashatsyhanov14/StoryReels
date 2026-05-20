@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -9,8 +9,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
+    const supabase = getSupabaseAdmin();
+
     // Try to get user
-    let { data: user, error } = await supabaseAdmin
+    const { data: dbUser, error } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
@@ -20,9 +22,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    let user = dbUser;
+
     // If user does not exist, create it with 5 starter tokens
     if (!user) {
-      const { data: newUser, error: createError } = await supabaseAdmin
+      const { data: newUser, error: createError } = await supabase
         .from('users')
         .insert({
           id: userId,
@@ -39,7 +43,7 @@ export async function POST(request: Request) {
 
     // If addTokens is specified, update the user balance in Supabase
     if (addTokens) {
-      const { data: updatedUser, error: updateErr } = await supabaseAdmin
+      const { data: updatedUser, error: updateErr } = await supabase
         .from('users')
         .update({ token_balance: (user.token_balance || 0) + addTokens })
         .eq('id', userId)

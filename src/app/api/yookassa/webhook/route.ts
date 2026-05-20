@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 // YooKassa Webhook Handler
 export async function POST(request: Request) {
@@ -16,13 +16,30 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'User ID not found in metadata' }, { status: 400 });
       }
 
-      // Start transaction process equivalent
-      
+      const supabase = getSupabaseAdmin();
+
+      // Check if transaction already exists to ensure idempotency
+      const { data: existingTx, error: checkError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('id', paymentId)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking transaction existence:', checkError);
+        return NextResponse.json({ error: 'Database check error' }, { status: 500 });
+      }
+
+      if (existingTx) {
+        console.log(`Transaction ${paymentId} already processed (idempotency guard)`);
+        return NextResponse.json({ success: true, message: 'Already processed' });
+      }
+
       // 1. Create transaction record
-      const { error: txError } = await supabaseAdmin
+      const { error: txError } = await supabase
         .from('transactions')
         .insert({
-          id: paymentId, // Optional: using YooKassa payment ID as tx ID
+          id: paymentId,
           user_id: userId,
           amount_rub: parseFloat(amount),
           status: 'success'
@@ -34,8 +51,7 @@ export async function POST(request: Request) {
       }
 
       // 2. Increment user token balance
-      // We will read first, then update
-      const { data: user, error: userError } = await supabaseAdmin
+      const { data: user, error: userError } = await supabase
         .from('users')
         .select('token_balance')
         .eq('id', userId)
@@ -46,9 +62,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
       }
 
-      const newTokenBalance = (user.token_balance || 0) + 1; // Assuming 1 payment = 1 token
+      const newTokenBalance = (user.token_balance || 0) + 1;
 
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await supabase
         .from('users')
         .update({ token_balance: newTokenBalance })
         .eq('id', userId);

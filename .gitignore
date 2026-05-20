@@ -42,3 +42,7 @@ next-env.d.ts
 
 # agent skills
 /.agent/
+
+# runtime generated media
+/public/audio/
+/public/images/

@@ -127,4 +127,55 @@ body {
   animation: glitch-cut-transition 0.3s steps(5) forwards;
 }
 
+@keyframes slide-left {
+  0% { transform: scale(1.1) translateX(3%); }
+  100% { transform: scale(1.1) translateX(-3%); }
+}
+.animate-slide-left {
+  animation: slide-left 8s ease-in-out forwards;
+}
+
+@keyframes slide-right {
+  0% { transform: scale(1.1) translateX(-3%); }
+  100% { transform: scale(1.1) translateX(3%); }
+}
+.animate-slide-right {
+  animation: slide-right 8s ease-in-out forwards;
+}
+
+@keyframes scale-up {
+  0% { transform: scale(1.0); }
+  100% { transform: scale(1.15); }
+}
+.animate-scale-up {
+  animation: scale-up 8s ease-out forwards;
+}
+
+@keyframes scale-down {
+  0% { transform: scale(1.15); }
+  100% { transform: scale(1.0); }
+}
+.animate-scale-down {
+  animation: scale-down 8s ease-out forwards;
+}
+
+@keyframes white-flash-transition {
+  0% { background-color: rgba(255, 255, 255, 0); }
+  30% { background-color: rgba(255, 255, 255, 0.9); }
+  100% { background-color: rgba(255, 255, 255, 0); }
+}
+.animate-white-flash-transition {
+  animation: white-flash-transition 0.3s ease-out forwards;
+}
+
+@keyframes cross-blur-transition {
+  0% { backdrop-filter: blur(0px); opacity: 0; }
+  50% { backdrop-filter: blur(15px); opacity: 1; background-color: rgba(0,0,0,0.2); }
+  100% { backdrop-filter: blur(0px); opacity: 0; }
+}
+.animate-cross-blur-transition {
+  animation: cross-blur-transition 0.4s ease-in-out forwards;
+}
+
+
 

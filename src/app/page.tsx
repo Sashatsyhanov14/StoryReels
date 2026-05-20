@@ -102,96 +102,137 @@ export default function Home() {
   const [transitionClass, setTransitionClass] = useState("");
   const advanceToNextSceneRef = useRef<() => void>(() => {});
 
-  // Audio system state
-  const [audio] = useState<HTMLAudioElement | null>(() => {
+  // Audio system ref
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize audio and event listeners
+  useEffect(() => {
     if (typeof window !== "undefined") {
-      return new Audio();
+      const audioInstance = new Audio();
+      
+      const handleEnded = () => {
+        advanceToNextSceneRef.current();
+      };
+      
+      audioInstance.addEventListener("ended", handleEnded);
+      audioRef.current = audioInstance;
+
+      return () => {
+        audioInstance.pause();
+        audioInstance.removeEventListener("ended", handleEnded);
+      };
     }
-    return null;
-  });
+  }, []);
 
-  // Ref for background polling interval
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Poll database for a pending episode's real progress
-  const startPolling = (episodeId: string, currentUserId: string) => {
+  const runGeneration = async (
+    episodeId: string, 
+    currentUserId: string, 
+    scenes: { imageUrl?: string; audioUrl?: string; image_prompt?: string; voice_text?: string; camera_effect?: string; transition?: string; }[]
+  ) => {
     setIsGenerating(true);
-    setGenStep("script");
-    setGenerationProgress(5);
+    setGenStep("keyframes");
 
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
+    // Find the first scene that doesn't have an imageUrl or audioUrl
+    let startIdx = 0;
+    for (let i = 0; i < scenes.length; i++) {
+      const hasImage = scenes[i].imageUrl && scenes[i].imageUrl !== "";
+      const hasAudio = scenes[i].audioUrl && scenes[i].audioUrl !== "" && scenes[i].audioUrl !== "#";
+      if (!hasImage || !hasAudio) {
+        startIdx = i;
+        break;
+      }
     }
 
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/episodes?userId=${currentUserId}`);
-        if (!response.ok) return;
+    try {
+      for (let i = startIdx; i < scenes.length; i++) {
+        const progress = Math.min(95, Math.round(10 + (i / scenes.length) * 85));
+        setGenerationProgress(progress);
+        
+        // Update pending episode status in UI dynamically so user sees progress
+        setEpisodes((prevEpisodes) => {
+          return prevEpisodes.map((ep) => {
+            if (ep.id === episodeId) {
+              return {
+                ...ep,
+                progress,
+                step: "keyframes"
+              };
+            }
+            return ep;
+          });
+        });
 
+        const response = await fetch('/api/episodes/generate-scene', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ episodeId, sceneIndex: i })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Ошибка при генерации кадра ${i + 1}`);
+        }
+        
+        const data = await response.json();
+        if (data.isCompleted) {
+          break;
+        }
+      }
+
+      // Fetch the updated episodes and select the newly ready episode
+      const response = await fetch(`/api/episodes?userId=${currentUserId}`);
+      if (response.ok) {
         const data = await response.json();
         const episodesList: Episode[] = data.episodes || [];
         setEpisodes(episodesList);
-
-        const currentEp = episodesList.find((ep) => ep.id === episodeId);
-        if (!currentEp) {
-          clearInterval(interval);
-          setIsGenerating(false);
-          setGenStep("idle");
-          setGenerationProgress(0);
-          return;
-        }
-
-        // Keep selected episode sync'ed if it's the pending one
-        setSelectedEpisode((prev) => {
-          if (prev && prev.id === episodeId) {
-            return currentEp;
-          }
-          return prev;
-        });
-
-        if (currentEp.status === "ready") {
-          clearInterval(interval);
-          setIsGenerating(false);
-          setGenStep("idle");
-          setGenerationProgress(0);
-          setSelectedEpisode(currentEp);
+        
+        const finishedEp = episodesList.find((ep) => ep.id === episodeId);
+        if (finishedEp) {
+          setSelectedEpisode(finishedEp);
           setActiveSceneIndex(0);
-        } else if (currentEp.status === "failed") {
-          clearInterval(interval);
-          setIsGenerating(false);
-          setGenStep("idle");
-          setGenerationProgress(0);
-          alert("Ошибка генерации: не удалось завершить создание эпизода.");
-          
-          // Re-sync balance
-          try {
-            const userResponse = await fetch("/api/users", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId: currentUserId }),
-            });
-            const userData = await userResponse.json();
-            if (userData.tokenBalance !== undefined) {
-              setTokenBalance(userData.tokenBalance);
-            }
-          } catch (e) {
-            console.error("Failed to sync user token balance", e);
-          }
-        } else {
-          // Still pending, update real progress
-          if (currentEp.progress !== undefined) {
-            setGenerationProgress(currentEp.progress);
-          }
-          if (currentEp.step) {
-            setGenStep(currentEp.step);
-          }
         }
-      } catch (err) {
-        console.error("Error polling episode status:", err);
       }
-    }, 3000);
 
-    pollingIntervalRef.current = interval;
+      setGenerationProgress(100);
+      setGenStep("idle");
+      setIsGenerating(false);
+
+    } catch (err) {
+      console.error("Generation loop failed:", err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      alert(`Ошибка: ${errMsg}`);
+      
+      await fetch(`/api/episodes/fail`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ episodeId })
+      }).catch(console.error);
+
+      // Refresh episodes list
+      const response = await fetch(`/api/episodes?userId=${currentUserId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setEpisodes(data.episodes || []);
+      }
+
+      // Refresh user balance if tokens were refunded/adjusted
+      try {
+        const userResponse = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: currentUserId }),
+        });
+        const userData = await userResponse.json();
+        if (userData.tokenBalance !== undefined) {
+          setTokenBalance(userData.tokenBalance);
+        }
+      } catch (e) {
+        console.error("Failed to sync user tokens on error", e);
+      }
+
+      setGenerationProgress(0);
+      setGenStep("idle");
+      setIsGenerating(false);
+    }
   };
 
   // Sync user and fetch real episodes on mount
@@ -204,10 +245,11 @@ export default function Home() {
       localStorage.setItem("storyreels_user_id", savedUserId);
     }
 
-    setUserId(savedUserId);
-
     const syncUser = async () => {
       try {
+        if (savedUserId) {
+          setUserId(savedUserId);
+        }
         const response = await fetch("/api/users", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -229,11 +271,11 @@ export default function Home() {
         if (data.episodes && data.episodes.length > 0) {
           setEpisodes(data.episodes);
           
-          // Check if there is any pending episode and resume polling
-          const pendingEpisode = data.episodes.find((ep: any) => ep.status === "pending");
+          // Check if there is any pending episode and resume generation loop
+          const pendingEpisode = data.episodes.find((ep: Episode) => ep.status === "pending");
           if (pendingEpisode) {
             setSelectedEpisode(pendingEpisode);
-            startPolling(pendingEpisode.id, savedUserId);
+            runGeneration(pendingEpisode.id, savedUserId || "", pendingEpisode.scenes);
           } else {
             setSelectedEpisode(data.episodes[0]);
           }
@@ -276,35 +318,22 @@ export default function Home() {
 
   // Handle actual audio playback
   useEffect(() => {
-    if (!audio) return;
+    const audioInstance = audioRef.current;
+    if (!audioInstance) return;
 
     // Stop current audio when changing scenes or pausing
-    audio.pause();
+    audioInstance.pause();
 
     if (isPlaying && selectedEpisode && selectedEpisode.scenes.length > 0) {
       const activeScene = selectedEpisode.scenes[activeSceneIndex];
       if (activeScene && activeScene.audioUrl && activeScene.audioUrl !== "#") {
-        audio.src = activeScene.audioUrl;
-        audio.play().catch((err) => {
+        audioInstance.src = activeScene.audioUrl;
+        audioInstance.play().catch((err) => {
           console.warn("Audio play prevented:", err);
         });
       }
     }
-  }, [isPlaying, activeSceneIndex, selectedEpisode, audio]);
-
-  // Audio completion listener for auto-advancing slides
-  useEffect(() => {
-    if (!audio) return;
-
-    const handleEnded = () => {
-      advanceToNextSceneRef.current();
-    };
-
-    audio.addEventListener("ended", handleEnded);
-    return () => {
-      audio.removeEventListener("ended", handleEnded);
-    };
-  }, [audio]);
+  }, [isPlaying, activeSceneIndex, selectedEpisode]);
 
   // Fallback timer for auto-advancing when audio is not available
   useEffect(() => {
@@ -323,18 +352,6 @@ export default function Home() {
 
     return () => clearTimeout(timer);
   }, [isPlaying, activeSceneIndex, selectedEpisode]);
-
-  // Pause audio and clear intervals on unmount
-  useEffect(() => {
-    return () => {
-      if (audio) {
-        audio.pause();
-      }
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-  }, [audio]);
 
   const saveTokens = (newBalance: number) => {
     setTokenBalance(newBalance);
@@ -371,12 +388,13 @@ export default function Home() {
       setTokenBalance((prev) => Math.max(0, prev - 1));
       setPrompt("");
 
-      // Start database polling to track progress
-      startPolling(data.episodeId, userId);
+      // Start client-driven generation loop
+      await runGeneration(data.episodeId, userId, data.scenes);
 
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      alert(`Ошибка генерации: ${err.message || err}`);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      alert(`Ошибка генерации: ${errorMessage}`);
       setIsGenerating(false);
       setGenStep("idle");
       setGenerationProgress(0);
