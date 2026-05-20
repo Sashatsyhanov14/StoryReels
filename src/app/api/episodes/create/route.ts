@@ -9,9 +9,11 @@ async function generateScript(userPrompt: string) {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
     console.warn('POLZA_API_KEY is not defined, using mock script.');
-    return Array.from({ length: 15 }, (_, i) => ({
-      image_prompt: `cyberpunk neon noir scene part ${i + 1} based on ${userPrompt}`,
-      text: `Сцена ${i + 1}: Диалог или закадровый голос для "${userPrompt}"`
+    return Array.from({ length: 18 }, (_, i) => ({
+      image_prompt: `cyberpunk neon noir scene part ${i + 1} maintaining the main character design in 90s anime style, based on ${userPrompt}`,
+      voice_text: `Сцена ${i + 1}: Глубокий закадровый текст на русском. Сюжет для "${userPrompt}"`,
+      camera_effect: i % 2 === 0 ? 'pan-diagonal' : 'zoom-in-fast',
+      transition: i % 2 === 0 ? 'fade-to-black' : 'glitch-cut'
     }));
   }
 
@@ -26,7 +28,27 @@ async function generateScript(userPrompt: string) {
       messages: [
         {
           role: 'system',
-          content: 'You are an elite screenwriter. Your task is to generate a compelling, episodic cinematic storyboard script based on the user\'s prompt. The narration and dialogue lines MUST be in Russian. You must output exactly 15 sequential scenes. For each scene, provide a highly detailed descriptive prompt in English for image generation and a brief narration/dialogue line in Russian (1-2 sentences). You MUST return your output in JSON format: a JSON array containing exactly 15 objects, each having the keys "image_prompt" and "text". Do not wrap in markdown, return raw JSON only.'
+          content: `Ты — режиссер и сценарист анимационного кино. Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал из 18 кадров. 
+Стиль: flat vector 2d cartoon style, 90s anime aesthetic, cinematic lighting.
+Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне.
+
+Правила драматургии:
+Кадры 1-4: Экспозиция, завязка, погружение в атмосферу.
+Кадры 5-12: Развитие сюжета, появление скрытой угрозы, нарастание напряжения.
+Кадры 13-17: Пик конфликта, экшен, безысходность (кортизоловая петля).
+Кадр 18: Клиффхэнгер. Сцена обрывается на самом страшном, интригующем или шокирующем моменте. Смертельная опасность или раскрытие тайны.
+
+Выдай ответ СТРОГО в формате JSON (массив из 18 объектов), без markdown-разметки:
+[
+  {
+    "frame": 1,
+    "image_prompt": "Detailed description of the scene for Flux Schnell, maintaining the main character's design and 90s anime style",
+    "voice_text": "Глубокий закадровый текст на русском для TTS. Плотный сюжет, без банальностей.",
+    "camera_effect": "pan-diagonal",
+    "transition": "fade-to-black"
+  }
+]
+`
         },
         {
           role: 'user',
@@ -54,13 +76,16 @@ async function generateScript(userPrompt: string) {
     throw new Error('Invalid response structure from Polza script generation');
   }
   
-  return scenes.slice(0, 15).map((scene: any) => ({
-    image_prompt: scene.image_prompt || scene.prompt || 'cinematic shot',
-    text: scene.text || scene.dialogue || scene.narration || ''
+  return scenes.slice(0, 18).map((scene: any) => ({
+    image_prompt: scene.image_prompt || scene.prompt || 'cinematic shot, 90s anime style',
+    voice_text: scene.voice_text || scene.text || scene.dialogue || scene.narration || '',
+    camera_effect: scene.camera_effect || 'pan-diagonal',
+    transition: scene.transition || 'fade-to-black'
   }));
 }
 
-// Image generation via Polza.ai (tongyi-mai/z-image — Z-Image)
+
+// Image generation via Polza.ai (black-forest-labs/flux.2-flex)
 async function generateImage(prompt: string) {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
@@ -78,7 +103,7 @@ async function generateImage(prompt: string) {
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'tongyi-mai/z-image',
+        model: 'black-forest-labs/flux.2-flex',
         prompt: prompt,
         n: 1,
         size: '9:16',
@@ -162,13 +187,21 @@ async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30)
   throw new Error(`Image task ${taskId} timed out after ${maxAttempts} attempts`);
 }
 
-// Process scenes in parallel batches (batchSize 5) to respect Polza.ai limit of 10 max concurrent requests
+// Process scenes in parallel batches (batchSize 3) to respect Polza.ai limit of 10 max concurrent requests
 async function generateAssetsInBatches(
-  script: { image_prompt: string; text: string }[],
+  script: { image_prompt: string; voice_text: string; camera_effect: string; transition: string }[],
   episodeId: string,
-  batchSize: number = 5
+  userPrompt: string,
+  batchSize: number = 3
 ) {
-  const allAssets: { imageUrl: string; audioUrl: string; text: string; imagePrompt: string }[] = [];
+  const allAssets: { 
+    imageUrl: string; 
+    audioUrl: string; 
+    text: string; 
+    imagePrompt: string;
+    cameraEffect: string;
+    transition: string;
+  }[] = [];
   const totalBatches = Math.ceil(script.length / batchSize);
 
   for (let i = 0; i < script.length; i += batchSize) {
@@ -177,9 +210,9 @@ async function generateAssetsInBatches(
     
     // Map batchIndex to steps: keyframes -> voiceover -> compiling
     let step: 'keyframes' | 'voiceover' | 'compiling' = 'keyframes';
-    if (batchIndex >= 3) {
+    if (batchIndex >= Math.ceil(totalBatches * 0.6)) {
       step = 'compiling';
-    } else if (batchIndex >= 1) {
+    } else if (batchIndex >= Math.ceil(totalBatches * 0.2)) {
       step = 'voiceover';
     }
     
@@ -190,7 +223,7 @@ async function generateAssetsInBatches(
     await supabaseAdmin
       .from('episodes')
       .update({
-        assets_json: { progress, step }
+        assets_json: { progress, step, userPrompt }
       })
       .eq('id', episodeId);
 
@@ -198,13 +231,15 @@ async function generateAssetsInBatches(
       batch.map(async (frame) => {
         const [imageUrl, audioUrl] = await Promise.all([
           generateImage(frame.image_prompt),
-          generateAudio(frame.text)
+          generateAudio(frame.voice_text)
         ]);
         return {
           imageUrl,
           audioUrl,
-          text: frame.text,
-          imagePrompt: frame.image_prompt
+          text: frame.voice_text,
+          imagePrompt: frame.image_prompt,
+          cameraEffect: frame.camera_effect,
+          transition: frame.transition
         };
       })
     );
@@ -286,7 +321,7 @@ export async function POST(request: Request) {
       .insert({
         user_id: userId,
         status: 'pending',
-        assets_json: { progress: 5, step: 'script' }
+        assets_json: { progress: 5, step: 'script', userPrompt: prompt || 'киберпанк приключение' }
       })
       .select()
       .single();
@@ -313,12 +348,12 @@ export async function POST(request: Request) {
         await supabaseAdmin
           .from('episodes')
           .update({
-            assets_json: { progress: 20, step: 'keyframes' }
+            assets_json: { progress: 20, step: 'keyframes', userPrompt: prompt || 'киберпанк приключение' }
           })
           .eq('id', episode.id);
 
         // Sequential batch rendering (3 scenes per batch)
-        const assets = await generateAssetsInBatches(script, episode.id, 3);
+        const assets = await generateAssetsInBatches(script, episode.id, prompt || 'киберпанк приключение', 3);
 
         // Update episode as ready
         await supabaseAdmin

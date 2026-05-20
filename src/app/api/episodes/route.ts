@@ -34,8 +34,12 @@ export async function GET(request: Request) {
         id: ep.id,
         title: !isPending && scenes[0] 
           ? scenes[0].text.substring(0, 20) + (scenes[0].text.length > 20 ? '...' : '')
-          : 'Эпизод ' + ep.id.substring(0, 4),
-        prompt: !isPending && scenes[0] ? scenes[0].imagePrompt : 'Описание отсутствует',
+          : (isProgressObj && (assets as any).userPrompt 
+             ? (assets as any).userPrompt.substring(0, 20) + ((assets as any).userPrompt.length > 20 ? '...' : '')
+             : 'Эпизод ' + ep.id.substring(0, 4)),
+        prompt: isProgressObj && (assets as any).userPrompt 
+          ? (assets as any).userPrompt 
+          : (!isPending && scenes[0] ? scenes[0].imagePrompt : 'Описание отсутствует'),
         status: ep.status,
         createdAt: new Date(ep.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         scenes: scenes,

@@ -8,6 +8,8 @@ interface Scene {
   audioUrl: string;
   text: string;
   imagePrompt: string;
+  cameraEffect?: string;
+  transition?: string;
 }
 
 interface Episode {
@@ -97,6 +99,8 @@ export default function Home() {
   const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(INITIAL_EPISODES[0]);
   const [activeSceneIndex, setActiveSceneIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [transitionClass, setTransitionClass] = useState("");
+  const advanceToNextSceneRef = useRef<() => void>(() => {});
 
   // Audio system state
   const [audio] = useState<HTMLAudioElement | null>(() => {
@@ -243,6 +247,33 @@ export default function Home() {
     fetchEpisodes();
   }, []);
 
+  // Set advanceToNextSceneRef implementation
+  useEffect(() => {
+    advanceToNextSceneRef.current = () => {
+      if (!selectedEpisode || selectedEpisode.scenes.length === 0) return;
+      const currentScene = selectedEpisode.scenes[activeSceneIndex];
+      const transitionType = currentScene?.transition || "fade-to-black";
+
+      setTransitionClass(transitionType);
+
+      // Change the scene index halfway through (150ms)
+      setTimeout(() => {
+        setActiveSceneIndex((prev) => {
+          if (prev >= selectedEpisode.scenes.length - 1) {
+            setIsPlaying(false);
+            return 0;
+          }
+          return prev + 1;
+        });
+      }, 150);
+
+      // Reset transition class after completion (300ms)
+      setTimeout(() => {
+        setTransitionClass("");
+      }, 300);
+    };
+  }, [selectedEpisode, activeSceneIndex]);
+
   // Handle actual audio playback
   useEffect(() => {
     if (!audio) return;
@@ -266,22 +297,14 @@ export default function Home() {
     if (!audio) return;
 
     const handleEnded = () => {
-      if (selectedEpisode && selectedEpisode.scenes.length > 0) {
-        setActiveSceneIndex((prev) => {
-          if (prev >= selectedEpisode.scenes.length - 1) {
-            setIsPlaying(false);
-            return 0;
-          }
-          return prev + 1;
-        });
-      }
+      advanceToNextSceneRef.current();
     };
 
     audio.addEventListener("ended", handleEnded);
     return () => {
       audio.removeEventListener("ended", handleEnded);
     };
-  }, [audio, selectedEpisode]);
+  }, [audio]);
 
   // Fallback timer for auto-advancing when audio is not available
   useEffect(() => {
@@ -293,13 +316,7 @@ export default function Home() {
 
       if (!hasAudio) {
         timer = setTimeout(() => {
-          setActiveSceneIndex((prev) => {
-            if (prev >= selectedEpisode.scenes.length - 1) {
-              setIsPlaying(false);
-              return 0;
-            }
-            return prev + 1;
-          });
+          advanceToNextSceneRef.current();
         }, 4500); // 4.5 seconds per scene fallback
       }
     }
@@ -687,10 +704,22 @@ export default function Home() {
                         alt={selectedEpisode.scenes[activeSceneIndex].text}
                         className={`h-full w-full object-cover transition-all duration-700 ease-in-out ${
                           isPlaying 
-                            ? (activeSceneIndex % 2 === 0 ? "animate-ken-burns-in" : "animate-ken-burns-out")
+                            ? (selectedEpisode.scenes[activeSceneIndex].cameraEffect === "zoom-in-fast"
+                              ? "animate-zoom-in-fast"
+                              : selectedEpisode.scenes[activeSceneIndex].cameraEffect === "pan-diagonal"
+                              ? "animate-pan-diagonal"
+                              : (activeSceneIndex % 2 === 0 ? "animate-ken-burns-in" : "animate-ken-burns-out"))
                             : ""
                         }`}
                       />
+                    )}
+
+                    {/* Transition Overlay */}
+                    {transitionClass && (
+                      <div className={`absolute inset-0 z-20 pointer-events-none ${
+                        transitionClass === 'fade-to-black' ? 'animate-fade-to-black-transition' :
+                        transitionClass === 'glitch-cut' ? 'animate-glitch-cut-transition' : ''
+                      }`} />
                     )}
                     
                     {/* Glassmorphic Audio Player Visualizer Bar */}
