@@ -90,6 +90,19 @@ export default function Home() {
   const [tokenBalance, setTokenBalance] = useState(5);
   const [episodes, setEpisodes] = useState<Episode[]>(INITIAL_EPISODES);
   
+  // Psychological Landing Flow State
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [landingStep, setLandingStep] = useState<"input" | "generating" | "teaser">("input");
+
+  useEffect(() => {
+    if (!isRegistered && landingStep === "generating") {
+      const timer = setTimeout(() => {
+        setLandingStep("teaser");
+      }, 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [landingStep, isRegistered]);
+
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
   const [genStep, setGenStep] = useState<"idle" | "script" | "keyframes" | "voiceover" | "compiling">("idle");
@@ -455,6 +468,115 @@ export default function Home() {
       alert("Начислено +5 токенов (клиентский демо-режим)!");
     }
   };
+
+  // --- PSYCHOLOGICAL LANDING HOOK (UX PERSUASION) ---
+  if (!isRegistered) {
+    return (
+      <div className="flex flex-col flex-1 min-h-screen bg-zinc-950 text-zinc-100 font-sans relative overflow-hidden items-center justify-center">
+        {/* Ambient glow background */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+        {landingStep === "input" && (
+          <div className="z-10 w-full max-w-2xl px-6 flex flex-col items-center text-center animate-fade-in">
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-semibold text-purple-300">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+              </span>
+              ИИ Студия Историй v2.0
+            </div>
+            <h1 className="mb-6 text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-tight">
+              Создайте вирусный <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">StoryReels</span> за 30 секунд
+            </h1>
+            <p className="mb-12 text-base md:text-lg text-zinc-400 max-w-lg">
+              Опишите вашу идею, а нейросеть напишет цепляющий сценарий, озвучит его и сгенерирует визуальный ряд. Без монтажа и часов работы.
+            </p>
+
+            <form 
+              onSubmit={(e) => { e.preventDefault(); if(prompt) setLandingStep("generating"); }}
+              className="w-full relative group"
+            >
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-3xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+              <div className="relative flex flex-col sm:flex-row items-center bg-zinc-900 border border-zinc-800 rounded-3xl p-2 shadow-2xl">
+                <input 
+                  type="text" 
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Опишите идею (например: киберпанк детектив...)"
+                  className="w-full bg-transparent border-none px-6 py-4 text-white placeholder-zinc-500 focus:outline-none text-base sm:text-lg"
+                />
+                <button 
+                  type="submit"
+                  disabled={!prompt}
+                  className="w-full sm:w-auto bg-white text-zinc-950 px-8 py-4 mt-2 sm:mt-0 rounded-2xl font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Создать ✨
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-10 flex flex-wrap justify-center gap-3">
+              {PRESET_PROMPTS.slice(0,3).map((p) => (
+                <button 
+                  key={p.title}
+                  onClick={() => setPrompt(p.prompt)}
+                  className="px-4 py-2 rounded-full border border-zinc-800 bg-zinc-900/50 text-[10px] sm:text-xs font-semibold text-zinc-400 hover:text-white hover:border-zinc-600 transition-colors"
+                >
+                  {p.emoji} {p.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {landingStep === "generating" && (
+          <div className="z-10 flex flex-col items-center text-center animate-fade-in">
+             <div className="relative mb-8">
+               <div className="h-32 w-32 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin"></div>
+               <div className="absolute inset-0 flex items-center justify-center text-3xl animate-pulse">🧠</div>
+             </div>
+             <h2 className="text-2xl font-bold text-white mb-2">ИИ создает магию...</h2>
+             <p className="text-zinc-400 mb-8 max-w-sm">
+               Анализ промпта... Написание сценария... Генерация изображений и озвучки...
+             </p>
+             {/* Fake generation timeout removed from JSX, handled in useEffect */}
+          </div>
+        )}
+
+        {landingStep === "teaser" && (
+          <div className="z-10 w-full flex flex-col items-center px-4 relative animate-fade-in">
+            <h2 className="text-3xl font-bold text-white mb-8">Ваш Reels готов! 🔥</h2>
+            
+            <div className="relative aspect-[9/16] w-full max-w-[320px] rounded-3xl overflow-hidden border border-zinc-700 shadow-[0_0_50px_rgba(168,85,247,0.3)] group">
+               {/* eslint-disable-next-line @next/next/no-img-element */}
+               <img src="https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?auto=format&fit=crop&w=600&q=80" alt="blur" className="w-full h-full object-cover blur-md scale-110" />
+               
+               {/* Curiosity Gap Paywall Overlay */}
+               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                  <span className="text-5xl mb-4 drop-shadow-lg">🔒</span>
+                  <h3 className="text-xl font-bold text-white mb-2">Сценарий просто огонь!</h3>
+                  <p className="text-xs text-zinc-300 mb-6 leading-relaxed">
+                    Чтобы посмотреть видео, скачать его без водяного знака и получить 5 токенов для новых генераций — войдите через Telegram.
+                  </p>
+                  <button 
+                    onClick={() => {
+                      setIsRegistered(true);
+                      setTokenBalance(5);
+                    }}
+                    className="w-full bg-gradient-to-r from-[#2AABEE] to-[#229ED9] hover:brightness-110 text-white font-bold py-3.5 rounded-xl mb-4 transition-all shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <span>Войти через Telegram</span>
+                  </button>
+                  <p className="text-[10px] text-red-400 font-mono font-bold animate-pulse flex items-center gap-1 mt-2">
+                    ⚠️ Черновик удалится через 14:59
+                  </p>
+               </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col flex-1 bg-zinc-950 text-zinc-100 font-sans selection:bg-purple-600 selection:text-white">
