@@ -44,8 +44,8 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
 Кадры 11-14: Пик конфликта, экшен, безысходность (кортизоловая петля).
 Кадр 15: Клиффхэнгер. Сцена обрывается на самом страшном, интригующем или шокирующем моменте. Смертельная опасность или раскрытие тайны.
 
-В полях camera_effect используй значения: 'zoom-in-fast', 'pan-diagonal', 'slide-left', 'slide-right', 'scale-up', 'scale-down'.
-В полях transition используй значения: 'fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur'.
+В полях camera_effect используй значения: 'zoom-in-fast', 'zoom-out-slow', 'camera-shake', 'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal'.
+В полях transition используй значения: 'fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade'.
 
 Выдай ответ СТРОГО в формате JSON (массив из 15 объектов), без markdown-разметки:
 [
@@ -53,8 +53,8 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
     "frame": 1,
     "image_prompt": "Detailed description of the scene for Flux Schnell/Z-Image in English, maintaining the main character's design and 90s anime style",
     "voice_text": "Глубокий закадровый текст на русском для TTS. Плотный сюжет, без банальностей.",
-    "camera_effect": "pan-diagonal",
-    "transition": "fade-to-black"
+    "camera_effect": "camera-shake",
+    "transition": "cross-fade"
   }
 ]
 `
@@ -85,8 +85,8 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
     throw new Error('Invalid response structure from Polza script generation');
   }
 
-  const transitions = ['fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur'];
-  const cameraEffects = ['zoom-in-fast', 'pan-diagonal', 'slide-left', 'slide-right', 'scale-up', 'scale-down'];
+  const transitions = ['fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade'];
+  const cameraEffects = ['zoom-in-fast', 'zoom-out-slow', 'camera-shake', 'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal'];
 
   return rawScenes.slice(0, 15).map((scene: unknown, i) => {
     const s = scene as Record<string, unknown>;

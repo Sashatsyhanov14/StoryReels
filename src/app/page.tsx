@@ -659,7 +659,8 @@ export default function Home() {
           
           {/* Episode Viewer */}
           {selectedEpisode ? (
-            <section className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
+            <>
+              <section className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
               <div className="p-5 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
                 <div>
                   <span className="rounded-full bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-purple-400 uppercase">
@@ -711,39 +712,65 @@ export default function Home() {
                 ) : selectedEpisode.scenes.length > 0 ? (
                   <>
                     {/* Scene Media (Image or Video) */}
-                    {selectedEpisode.scenes[activeSceneIndex].imageUrl.endsWith('.mp4') || selectedEpisode.scenes[activeSceneIndex].imageUrl.includes('video') ? (
-                      <video
-                        key={activeSceneIndex}
-                        src={selectedEpisode.scenes[activeSceneIndex].imageUrl}
-                        className="h-full w-full object-cover"
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                      />
-                    ) : (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        key={activeSceneIndex}
-                        src={selectedEpisode.scenes[activeSceneIndex].imageUrl}
-                        alt={selectedEpisode.scenes[activeSceneIndex].text}
-                        className={`h-full w-full object-cover transition-all duration-700 ease-in-out ${
-                          isPlaying 
-                            ? (selectedEpisode.scenes[activeSceneIndex].cameraEffect === "zoom-in-fast"
-                              ? "animate-zoom-in-fast"
-                              : selectedEpisode.scenes[activeSceneIndex].cameraEffect === "pan-diagonal"
-                              ? "animate-pan-diagonal"
-                              : (activeSceneIndex % 2 === 0 ? "animate-ken-burns-in" : "animate-ken-burns-out"))
-                            : ""
-                        }`}
-                      />
-                    )}
+                    {selectedEpisode.scenes.map((scene, idx) => {
+                      const isActive = idx === activeSceneIndex;
+                      const isVideo = scene.imageUrl.endsWith('.mp4') || scene.imageUrl.includes('video');
+                      
+                      if (isVideo) {
+                        return (
+                          <video
+                            key={idx}
+                            src={scene.imageUrl}
+                            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+                              isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                            }`}
+                            autoPlay={isActive}
+                            loop
+                            muted
+                            playsInline
+                          />
+                        );
+                      }
+                      
+                      return (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          key={idx}
+                          src={scene.imageUrl}
+                          alt={scene.text}
+                          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-in-out ${
+                            isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
+                          } ${
+                            isPlaying && isActive
+                              ? (scene.cameraEffect === "zoom-in-fast"
+                                ? "animate-zoom-in-fast"
+                                : scene.cameraEffect === "zoom-out-slow"
+                                ? "animate-zoom-out-slow"
+                                : scene.cameraEffect === "camera-shake"
+                                ? "animate-camera-shake"
+                                : scene.cameraEffect === "zoom-in-spin"
+                                ? "animate-zoom-in-spin"
+                                : scene.cameraEffect === "pan-left"
+                                ? "animate-pan-left"
+                                : scene.cameraEffect === "pan-right"
+                                ? "animate-pan-right"
+                                : scene.cameraEffect === "pan-diagonal"
+                                ? "animate-pan-diagonal"
+                                : (idx % 2 === 0 ? "animate-ken-burns-in" : "animate-ken-burns-out"))
+                              : ""
+                          }`}
+                        />
+                      );
+                    })}
 
                     {/* Transition Overlay */}
                     {transitionClass && (
                       <div className={`absolute inset-0 z-20 pointer-events-none ${
                         transitionClass === 'fade-to-black' ? 'animate-fade-to-black-transition' :
-                        transitionClass === 'glitch-cut' ? 'animate-glitch-cut-transition' : ''
+                        transitionClass === 'glitch-cut' ? 'animate-glitch-cut-transition' :
+                        transitionClass === 'white-flash' ? 'animate-white-flash-transition' :
+                        transitionClass === 'cross-blur' ? 'animate-cross-blur-transition' :
+                        transitionClass === 'cross-fade' ? 'animate-cross-fade-transition' : ''
                       }`} />
                     )}
                     
@@ -788,7 +815,116 @@ export default function Home() {
                 )}
               </div>
             </section>
-          ) : (
+
+            {/* Scenario Board Panel */}
+            {selectedEpisode.status === "ready" && (
+              <section className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 backdrop-blur-md">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <span>📋</span> Сценарий серии (Раскадровка)
+                    </h3>
+                    <p className="text-xs text-zinc-400 mt-1">
+                      Здесь показана последовательность кадров, озвучка и настройки анимации. Нажмите на строку, чтобы воспроизвести соответствующий кадр.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="overflow-x-auto rounded-2xl border border-zinc-800/80 bg-zinc-950/40">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-800/80 bg-zinc-900/50 text-[10px] uppercase font-bold tracking-wider text-zinc-400">
+                        <th className="px-4 py-3 text-center w-16">Кадр</th>
+                        <th className="px-4 py-3 w-48">Миниатюра / Промпт</th>
+                        <th className="px-4 py-3">Текст озвучки (Русский)</th>
+                        <th className="px-4 py-3 w-32">Анимация</th>
+                        <th className="px-4 py-3 w-28">Переход</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800/40">
+                      {selectedEpisode.scenes.map((scene, idx) => {
+                        const isActive = idx === activeSceneIndex;
+                        return (
+                          <tr 
+                            key={idx}
+                            onClick={() => {
+                              setActiveSceneIndex(idx);
+                              setIsPlaying(true);
+                            }}
+                            className={`cursor-pointer transition-all hover:bg-zinc-900/60 ${
+                              isActive ? "bg-purple-950/35 text-purple-200 border-l-2 border-purple-500 font-semibold" : "text-zinc-300"
+                            }`}
+                          >
+                            <td className="px-4 py-3.5 text-center font-mono">
+                              {isActive ? (
+                                <span className="flex items-center justify-center text-purple-400 gap-1 animate-pulse">
+                                  ▶️ {idx + 1}
+                                </span>
+                              ) : (
+                                idx + 1
+                              )}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <div className="flex items-center gap-3">
+                                {scene.imageUrl && scene.imageUrl !== "#" ? (
+                                  <div className="relative h-10 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-zinc-800">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img 
+                                      src={scene.imageUrl} 
+                                      alt={`Кадр ${idx + 1}`}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="h-10 w-16 bg-zinc-900 rounded-lg flex items-center justify-center text-zinc-500 flex-shrink-0 border border-zinc-850">
+                                    ⏳
+                                  </div>
+                                )}
+                                <div className="max-w-[200px] truncate text-[10px] text-zinc-500 font-mono" title={scene.imagePrompt}>
+                                  {scene.imagePrompt}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5 leading-relaxed max-w-xs break-words">
+                              {scene.text}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium border ${
+                                scene.cameraEffect === "camera-shake" ? "bg-red-500/10 border-red-500/20 text-red-400" :
+                                scene.cameraEffect?.startsWith("zoom") ? "bg-blue-500/10 border-blue-500/20 text-blue-400" :
+                                scene.cameraEffect?.startsWith("pan") ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" :
+                                "bg-zinc-500/10 border-zinc-500/20 text-zinc-400"
+                              }`}>
+                                {scene.cameraEffect === "zoom-in-fast" && "🔎 Zoom In Fast"}
+                                {scene.cameraEffect === "zoom-out-slow" && "🔍 Zoom Out Slow"}
+                                {scene.cameraEffect === "camera-shake" && "📳 Shake Action"}
+                                {scene.cameraEffect === "zoom-in-spin" && "🌀 Zoom Spin"}
+                                {scene.cameraEffect === "pan-left" && "⬅️ Pan Left"}
+                                {scene.cameraEffect === "pan-right" && "➡️ Pan Right"}
+                                {scene.cameraEffect === "pan-diagonal" && "↗️ Pan Diagonal"}
+                                {!scene.cameraEffect && "🎬 Ken Burns"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <span className="text-[10px] font-mono text-zinc-500">
+                                {scene.transition === "fade-to-black" && "🌑 Fade Black"}
+                                {scene.transition === "glitch-cut" && "📺 Glitch Cut"}
+                                {scene.transition === "white-flash" && "⚡ White Flash"}
+                                {scene.transition === "cross-blur" && "🌫️ Cross Blur"}
+                                {scene.transition === "cross-fade" && "🌸 Cross Fade"}
+                                {!scene.transition && "⚡ Cut"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+          </>
+        ) : (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-800 p-12 text-center bg-zinc-900/10">
               <span className="text-3xl mb-3">🎬</span>
               <p className="text-sm text-zinc-400">Выберите или создайте эпизод слева, чтобы начать просмотр</p>
