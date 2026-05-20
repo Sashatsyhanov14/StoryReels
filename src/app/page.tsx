@@ -746,13 +746,13 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Main Workspace Area */}
-      <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-6 py-8 lg:flex-row">
+      {/* Bento Grid Dashboard */}
+      <main className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 lg:grid-cols-12 gap-6 px-6 py-8">
         
-        {/* Left Side: Creation & Controls */}
-        <div className="flex flex-1 flex-col gap-8 lg:max-w-xl">
+        {/* BENTO ITEMS 1 & 2: Generation Hub & Gamification (Cols 1-7) */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
           {/* Generation Panel */}
-          <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6 backdrop-blur-md">
+          <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-xl shadow-2xl transition-all hover:border-zinc-700/80 group">
             <div className="absolute -top-12 -right-12 h-24 w-24 rounded-full bg-purple-500/10 blur-xl"></div>
             
             <h2 className="mb-2 text-lg font-bold text-white flex items-center gap-2">
@@ -857,53 +857,49 @@ export default function Home() {
             )}
           </section>
 
-          {/* Pricing & YooKassa Top-up */}
-          <section className="rounded-3xl border border-zinc-800 bg-zinc-900/30 p-6">
-            <h2 className="mb-2 text-base font-bold text-white flex items-center gap-2">
-              <span>🪙</span> Токены и демо-версия оплаты
-            </h2>
-            <p className="mb-4 text-xs text-zinc-400">
-              Создание каждого эпизода расходует 1 токен. Реальные платежные операции безопасно обрабатываются через шлюз ЮKassa.
-            </p>
+          {/* Bento Grid: Stats and Pricing */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {/* Gamification / Level Widget */}
+            <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-900/30 p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-center transition-all hover:border-zinc-700">
+              <h3 className="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest">Твой уровень</h3>
+              <div className="flex items-center gap-4 mb-4">
+                 <div className="text-4xl filter drop-shadow-md">🎬</div>
+                 <div>
+                   <div className="text-lg font-bold text-white tracking-tight">Новичок</div>
+                   <div className="text-[10px] text-zinc-500 font-mono">Сгенерировано: 1 видео</div>
+                 </div>
+              </div>
+              
+              <div className="w-full bg-zinc-950 rounded-full h-1.5 mb-2 overflow-hidden border border-zinc-800">
+                 <div className="bg-gradient-to-r from-purple-600 to-pink-500 h-1.5 rounded-full w-1/5 shadow-[0_0_10px_#a855f7]"></div>
+              </div>
+              <p className="text-[9px] text-zinc-400 leading-tight mt-1">
+                Осталось 4 видео до уровня <strong className="text-purple-400 font-bold">Режиссер</strong> (+5 токенов)
+              </p>
+            </section>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div className="flex flex-col items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 text-center">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Стартовый</span>
-                <span className="my-2 text-2xl font-black text-white">1 <span className="text-xs text-zinc-400">Токен</span></span>
-                <button
-                  onClick={handleTopUp}
-                  className="w-full rounded-xl bg-zinc-800 py-1.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700"
-                >
-                  100 ₽
-                </button>
-              </div>
-              <div className="relative flex flex-col items-center justify-between rounded-2xl border border-purple-500/50 bg-purple-950/10 p-4 text-center">
-                <div className="absolute -top-2.5 rounded-full bg-purple-600 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">Популярно</div>
-                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Автор</span>
-                <span className="my-2 text-2xl font-black text-white">5 <span className="text-xs text-zinc-400">Токенов</span></span>
-                <button
-                  onClick={handleTopUp}
-                  className="w-full rounded-xl bg-purple-600 py-1.5 text-[10px] font-bold text-white hover:bg-purple-500 shadow-md shadow-purple-600/20"
-                >
-                  450 ₽
-                </button>
-              </div>
-              <div className="flex flex-col items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 text-center">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Студия</span>
-                <span className="my-2 text-2xl font-black text-white">15 <span className="text-xs text-zinc-400">Токенов</span></span>
-                <button
-                  onClick={handleTopUp}
-                  className="w-full rounded-xl bg-zinc-800 py-1.5 text-[10px] font-bold text-zinc-300 hover:bg-zinc-700"
-                >
-                  1000 ₽
-                </button>
-              </div>
-            </div>
-          </section>
+            {/* Compact Top-Up */}
+            <section className="rounded-3xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-xl flex flex-col justify-between shadow-2xl transition-all hover:border-zinc-700">
+               <h3 className="text-[10px] font-bold text-zinc-500 mb-2 uppercase tracking-widest flex items-center justify-between">
+                 <span>Баланс токенов</span>
+                 <span className="text-white text-sm font-black bg-zinc-800 px-2 py-0.5 rounded-md border border-zinc-700">{tokenBalance} 🪙</span>
+               </h3>
+               <p className="text-[9px] text-zinc-400 mb-4 leading-tight">Каждое создание рилса расходует 1 токен. Пополните сейчас со скидкой.</p>
+               
+               <div className="flex gap-2">
+                 <button onClick={handleTopUp} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold py-2.5 rounded-xl text-[10px] transition-all border border-zinc-700/50">
+                    +5 (450₽)
+                 </button>
+                 <button onClick={handleTopUp} className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:opacity-90 text-white font-bold py-2.5 rounded-xl text-[10px] shadow-[0_0_15px_rgba(168,85,247,0.4)] transition-all">
+                    +15 (1000₽)
+                 </button>
+               </div>
+            </section>
+          </div>
         </div>
 
-        {/* Right Side: Episodic Gallery & Interactive Reel Player */}
-        <div className="flex flex-1 flex-col gap-8">
+        {/* BENTO ITEMS 3 & 4: The Player & Community (Cols 8-12) */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
           
           {/* Episode Viewer */}
           {selectedEpisode ? (
@@ -1062,6 +1058,32 @@ export default function Home() {
                 )}
               </div>
               </div>
+
+            {/* BENTO ITEM: Social Proof / Idea of the Day */}
+            <div className="flex flex-col gap-3">
+                 <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1 mt-2">Вдохновение дня</h3>
+                 <button onClick={() => setPrompt("Триллер в заброшенном особняке, где картины оживают по ночам, и детектив должен разгадать их тайну до рассвета.")} className="text-left relative overflow-hidden rounded-3xl border border-purple-500/30 bg-purple-500/10 p-5 backdrop-blur-xl shadow-lg transition-all hover:bg-purple-500/20 active:scale-[0.98] group flex gap-4 items-center">
+                    <span className="text-4xl block animate-pulse drop-shadow-[0_0_15px_rgba(168,85,247,0.5)]">🔮</span>
+                    <div>
+                      <p className="text-sm text-white font-bold mb-0.5">Мистический особняк</p>
+                      <p className="text-[10px] text-purple-300/70 mb-2 font-mono uppercase">Триллер • Хоррор</p>
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-purple-400 bg-purple-500/20 border border-purple-500/30 px-2 py-1 rounded-md transition-all group-hover:bg-purple-500/40">
+                         Применить промпт
+                      </span>
+                    </div>
+                 </button>
+
+                 {/* Low Token Warning Widget (Loss Aversion Trigger) */}
+                 {tokenBalance < 3 && (
+                    <div className="relative overflow-hidden rounded-3xl border border-orange-500/50 bg-orange-500/10 p-5 backdrop-blur-xl shadow-lg mt-1 flex gap-4 items-center animate-pulse">
+                       <span className="text-3xl block">🔥</span>
+                       <div>
+                         <h3 className="text-xs font-bold text-orange-400 mb-0.5">Токены на исходе!</h3>
+                         <p className="text-[9px] text-orange-300/80 leading-tight">Осталось всего {tokenBalance}. Пополните баланс со скидкой 20% прямо сейчас.</p>
+                       </div>
+                    </div>
+                 )}
+            </div>
 
             {/* Scenario Board Panel */}
             {selectedEpisode.status === "ready" && (
