@@ -144,9 +144,16 @@ export default function Home() {
     }
 
     try {
+      const batchSize = 5;
+      const pendingIndices: number[] = [];
       for (let i = startIdx; i < scenes.length; i++) {
-        const progress = Math.min(95, Math.round(10 + (i / scenes.length) * 85));
-        setGenerationProgress(progress);
+        pendingIndices.push(i);
+      }
+
+      for (let k = 0; k < pendingIndices.length; k += batchSize) {
+        const batch = pendingIndices.slice(k, k + batchSize);
+        const currentProgress = Math.min(95, Math.round(10 + ((startIdx + k) / scenes.length) * 85));
+        setGenerationProgress(currentProgress);
         
         // Update pending episode status in UI dynamically so user sees progress
         setEpisodes((prevEpisodes) => {
@@ -154,7 +161,7 @@ export default function Home() {
             if (ep.id === episodeId) {
               return {
                 ...ep,
-                progress,
+                progress: currentProgress,
                 step: "keyframes"
               };
             }
@@ -165,11 +172,11 @@ export default function Home() {
         const response = await fetch('/api/episodes/generate-scene', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ episodeId, sceneIndex: i })
+          body: JSON.stringify({ episodeId, sceneIndices: batch })
         });
         
         if (!response.ok) {
-          throw new Error(`Ошибка при генерации кадра ${i + 1}`);
+          throw new Error(`Ошибка при генерации кадров: ${batch.map(idx => idx + 1).join(', ')}`);
         }
         
         const data = await response.json();

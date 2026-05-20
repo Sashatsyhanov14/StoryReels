@@ -220,11 +220,15 @@ async function saveImageLocally(episodeId: string, sceneIndex: number, imageUrl:
 
 export async function POST(request: Request) {
   try {
-    const { episodeId, sceneIndex } = await request.json();
+    const { episodeId, sceneIndex, sceneIndices } = await request.json();
 
-    if (!episodeId || typeof sceneIndex !== 'number') {
-      return NextResponse.json({ error: 'Episode ID and scene index are required' }, { status: 400 });
+    if (!episodeId || (typeof sceneIndex !== 'number' && !Array.isArray(sceneIndices))) {
+      return NextResponse.json({ error: 'Episode ID and sceneIndex or sceneIndices are required' }, { status: 400 });
     }
+
+    const indices: number[] = Array.isArray(sceneIndices) 
+      ? sceneIndices 
+      : [sceneIndex as number];
 
     const supabase = getSupabaseAdmin();
 
@@ -251,38 +255,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid episode state' }, { status: 400 });
     }
 
-    const scene = assets.scenes[sceneIndex];
-    if (!scene) {
-      return NextResponse.json({ error: 'Scene index out of bounds' }, { status: 400 });
-    }
+    // 2. Generate assets for the requested scenes in parallel
+    await Promise.all(
+      indices.map(async (idx) => {
+        const scene = assets.scenes[idx];
+        if (!scene) return;
 
-    // 2. Generate assets for the current scene in parallel
-    const [rawImageUrl, rawAudioUrl] = await Promise.all([
-      generateImage(scene.image_prompt),
-      generateAudio(scene.voice_text)
-    ]);
+        // Generate assets for this scene in parallel
+        const [rawImageUrl, rawAudioUrl] = await Promise.all([
+          generateImage(scene.image_prompt),
+          generateAudio(scene.voice_text)
+        ]);
 
-    // 2.5 Save generated assets locally in parallel
-    const [imageUrl, audioUrl] = await Promise.all([
-      saveImageLocally(episodeId, sceneIndex, rawImageUrl),
-      saveAudioLocally(episodeId, sceneIndex, rawAudioUrl)
-    ]);
+        // Save generated assets locally in parallel
+        const [imageUrl, audioUrl] = await Promise.all([
+          saveImageLocally(episodeId, idx, rawImageUrl),
+          saveAudioLocally(episodeId, idx, rawAudioUrl)
+        ]);
 
-    // 3. Update the scene in the array
-    assets.scenes[sceneIndex] = {
-      ...scene,
-      imageUrl,
-      audioUrl
-    };
+        assets.scenes[idx] = {
+          ...scene,
+          imageUrl,
+          audioUrl
+        };
+      })
+    );
 
-    // Calculate progress (from 10% up to 95%)
-    const progress = Math.min(95, Math.round(10 + ((sceneIndex + 1) / assets.scenes.length) * 85));
+    // Calculate progress based on how many scenes are fully generated
+    const totalScenes = assets.scenes.length;
+    const generatedCount = assets.scenes.filter(s => s.imageUrl && s.audioUrl && s.audioUrl !== '#').length;
+    const progress = Math.min(95, Math.round(10 + (generatedCount / totalScenes) * 85));
     assets.progress = progress;
     assets.step = 'keyframes';
 
-    // 4. Update the DB state
-    const isLastScene = sceneIndex === assets.scenes.length - 1;
-    if (isLastScene) {
+    // 3. Check if all scenes in the episode are completed
+    const isCompleted = assets.scenes.every(s => s.imageUrl && s.audioUrl && s.audioUrl !== '#');
+
+    if (isCompleted) {
       // Map all scenes to format expected by UI
       const formattedScenes = assets.scenes.map((s) => ({
         imageUrl: s.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80',
