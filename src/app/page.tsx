@@ -660,28 +660,11 @@ export default function Home() {
           {/* Episode Viewer */}
           {selectedEpisode ? (
             <>
-              <section className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-900/20 overflow-hidden">
-              <div className="p-5 border-b border-zinc-800 bg-zinc-900/40 flex items-center justify-between">
-                <div>
-                  <span className="rounded-full bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-purple-400 uppercase">
-                    Текущий Эпизод
-                  </span>
-                  <h3 className="mt-1.5 text-lg font-bold text-white">{selectedEpisode.title}</h3>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setIsPlaying(!isPlaying);
-                    }}
-                    className="flex h-10 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-xs font-bold text-zinc-950 hover:bg-white"
-                  >
-                    {isPlaying ? "⏸️ Пауза" : "▶️ Запустить"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Player Body */}
-              <div className="relative aspect-video w-full bg-zinc-950 overflow-hidden flex items-center justify-center">
+              {/* Player Body (Vertical Video Reel) */}
+              <div 
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="relative aspect-[9/16] w-full max-w-[350px] mx-auto bg-zinc-950 overflow-hidden flex items-center justify-center rounded-3xl border border-zinc-800/80 shadow-2xl cursor-pointer select-none group"
+              >
                 {selectedEpisode.status === "pending" ? (
                   <div className="flex flex-col items-center justify-center p-6 text-center animate-pulse">
                     <div className="relative mb-4">
@@ -774,47 +757,46 @@ export default function Home() {
                       }`} />
                     )}
                     
-                    {/* Glassmorphic Audio Player Visualizer Bar */}
-                    <div className="absolute top-4 right-4 flex items-center gap-1.5 rounded-lg bg-black/40 px-2.5 py-1.5 backdrop-blur-md border border-white/10">
-                      <div className={`h-2.5 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse" : ""}`}></div>
-                      <div className={`h-4.5 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse delay-75" : ""}`}></div>
-                      <div className={`h-3 w-1 bg-purple-400 rounded-full ${isPlaying ? "animate-pulse delay-150" : ""}`}></div>
-                      <span className="text-[10px] font-mono text-zinc-300">
-                        {selectedEpisode.scenes[activeSceneIndex].audioUrl !== "#" ? "Озвучка ИИ воспроизводится" : "Режим без аудио"}
+                    {/* Minimalist Top Watermark */}
+                    <div className="absolute top-4 inset-x-0 z-20 flex justify-between items-center px-4 pointer-events-none opacity-40 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="text-[9px] font-mono tracking-widest text-white uppercase drop-shadow-md">
+                        STORYREELS • {selectedEpisode.title}
+                      </span>
+                      <span className="text-[9px] font-mono text-white drop-shadow-md">
+                        {activeSceneIndex + 1}/{selectedEpisode.scenes.length}
                       </span>
                     </div>
 
-                    {/* Progress Dots */}
-                    <div className="absolute top-4 left-4 flex gap-1.5 z-10">
-                      {selectedEpisode.scenes.map((_, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setActiveSceneIndex(idx);
-                            setIsPlaying(false);
-                          }}
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            idx === activeSceneIndex ? "w-6 bg-purple-500" : "w-2 bg-white/30 hover:bg-white/50"
-                          }`}
-                        ></button>
-                      ))}
-                    </div>
+                    {/* Pause Overlay Button */}
+                    {!isPlaying && (
+                      <div className="absolute inset-0 bg-black/40 z-20 flex items-center justify-center pointer-events-none">
+                        <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 transition-all duration-300">
+                          <span className="text-2xl pl-1">▶</span>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Closed Captions Subtitles Panel */}
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6 pt-16 flex flex-col justify-end">
-                      <p className="text-sm font-medium leading-relaxed text-zinc-100 text-center drop-shadow-md">
-                        &ldquo;{selectedEpisode.scenes[activeSceneIndex].text}&rdquo;
-                      </p>
-                      <p className="mt-2 text-[9px] uppercase tracking-wider text-purple-400 text-center font-bold font-mono">
-                        Сцена {activeSceneIndex + 1} из {selectedEpisode.scenes.length} — Промпт: {selectedEpisode.scenes[activeSceneIndex].imagePrompt}
-                      </p>
+                    <div className="absolute bottom-8 inset-x-0 z-20 px-4 flex flex-col justify-end pointer-events-none">
+                      <div className="mx-auto max-w-[90%] rounded-xl bg-black/60 px-4 py-2.5 text-center backdrop-blur-md border border-white/10 shadow-lg">
+                        <p className="text-xs font-semibold leading-relaxed text-yellow-300 text-center drop-shadow-md">
+                          {selectedEpisode.scenes[activeSceneIndex].text}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Sleek bottom progress indicator */}
+                    <div className="absolute bottom-0 inset-x-0 h-1 bg-white/10 z-20 flex">
+                      <div 
+                        className="h-full bg-purple-500 transition-all duration-300 ease-out" 
+                        style={{ width: `${((activeSceneIndex + 1) / selectedEpisode.scenes.length) * 100}%` }}
+                      />
                     </div>
                   </>
                 ) : (
                   <p className="text-sm text-zinc-500">В этом эпизоде нет сцен</p>
                 )}
               </div>
-            </section>
 
             {/* Scenario Board Panel */}
             {selectedEpisode.status === "ready" && (
