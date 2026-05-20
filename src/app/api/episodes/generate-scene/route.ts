@@ -86,7 +86,7 @@ async function generateImage(prompt: string): Promise<string> {
           'Connection': 'close'
         },
         body: JSON.stringify({
-          model: 'tongyi-mai/z-image',
+          model: 'qwen/image',
           input: {
             prompt,
             aspect_ratio: '9:16'
