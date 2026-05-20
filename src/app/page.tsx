@@ -660,11 +660,27 @@ export default function Home() {
           {/* Episode Viewer */}
           {selectedEpisode ? (
             <>
-              {/* Player Body (Vertical Video Reel) */}
-              <div 
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="relative aspect-[9/16] w-full max-w-[350px] mx-auto bg-zinc-950 overflow-hidden flex items-center justify-center rounded-3xl border border-zinc-800/80 shadow-2xl cursor-pointer select-none group"
-              >
+              {/* Cinematic Player Container with Ambilight Effect */}
+              <div className="relative w-full max-w-[350px] mx-auto flex items-center justify-center py-6">
+                {/* Ambilight Background Glow */}
+                {selectedEpisode.scenes?.length > 0 && selectedEpisode.scenes[activeSceneIndex]?.imageUrl && (
+                  <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none rounded-[3rem]">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] opacity-30 blur-[80px] transition-all duration-1000 ease-in-out scale-110">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={selectedEpisode.scenes[activeSceneIndex].imageUrl} 
+                        alt="" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Player Body (Vertical Video Reel) */}
+                <div 
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className="relative z-10 aspect-[9/16] w-full bg-zinc-950 overflow-hidden flex items-center justify-center rounded-3xl border border-zinc-800/80 shadow-[0_0_50px_rgba(0,0,0,0.5)] cursor-pointer select-none group hover:scale-[1.02] transition-transform duration-500"
+                >
                 {selectedEpisode.status === "pending" ? (
                   <div className="flex flex-col items-center justify-center p-6 text-center animate-pulse">
                     <div className="relative mb-4">
@@ -797,6 +813,7 @@ export default function Home() {
                   <p className="text-sm text-zinc-500">В этом эпизоде нет сцен</p>
                 )}
               </div>
+              </div>
 
             {/* Scenario Board Panel */}
             {selectedEpisode.status === "ready" && (
@@ -928,18 +945,18 @@ export default function Home() {
                     setActiveSceneIndex(0);
                     setIsPlaying(false);
                   }}
-                  className={`group relative flex flex-col text-left rounded-2xl border p-4 transition-all duration-300 hover:scale-[1.01] ${
+                  className={`group relative flex flex-col text-left rounded-2xl border p-5 transition-all duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-purple-900/20 ${
                     selectedEpisode?.id === ep.id
-                      ? "border-purple-500/80 bg-purple-950/10 shadow-md shadow-purple-950/20"
-                      : "border-zinc-800 bg-zinc-900/10 hover:border-zinc-700"
+                      ? "animate-glow-pulse bg-purple-950/20 z-10"
+                      : "border-zinc-800/60 bg-zinc-900/30 backdrop-blur-sm hover:border-zinc-600 hover:bg-zinc-800/50"
                   }`}
                 >
-                  <div className="flex items-start justify-between w-full mb-2">
+                  <div className="flex items-start justify-between w-full mb-3">
                     <div>
-                      <h4 className="font-bold text-zinc-100 group-hover:text-purple-400 transition-colors">
+                      <h4 className="font-bold text-zinc-100 group-hover:text-purple-400 transition-colors text-sm">
                         {ep.title}
                       </h4>
-                      <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{ep.createdAt}</p>
+                      <p className="text-[9px] text-zinc-500 font-mono mt-1 opacity-80">{ep.createdAt}</p>
                     </div>
                     <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${
                       ep.status === "ready"
@@ -952,16 +969,41 @@ export default function Home() {
                     </span>
                   </div>
 
-                  <p className="line-clamp-2 text-xs text-zinc-400 mb-4 leading-normal flex-1">
+                  <p className="line-clamp-2 text-xs text-zinc-400 mb-4 leading-relaxed flex-1">
                     {ep.prompt}
                   </p>
 
+                  {/* Miniature Scene Previews Bento Style */}
+                  {ep.status === "ready" && ep.scenes && ep.scenes.length > 0 && (
+                    <div className="flex gap-1.5 mb-4 overflow-hidden rounded-xl bg-zinc-950/50 p-1.5 border border-zinc-800/40 w-full animate-float-subtle">
+                      {ep.scenes.slice(0, 4).map((scene, sIdx) => (
+                        <div key={sIdx} className="relative aspect-[9/16] flex-1 overflow-hidden rounded-lg border border-zinc-800/50 bg-zinc-900 shadow-sm">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={scene.imageUrl} 
+                            alt=""
+                            className={`h-full w-full object-cover transition-all duration-700 ${
+                              selectedEpisode?.id === ep.id ? "grayscale-0 opacity-100" : "grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100"
+                            }`}
+                          />
+                        </div>
+                      ))}
+                      {ep.scenes.length > 4 && (
+                        <div className="relative aspect-[9/16] flex-1 overflow-hidden rounded-lg border border-zinc-800/50 bg-zinc-900 shadow-sm flex items-center justify-center text-[10px] font-bold text-zinc-500 group-hover:text-purple-400 transition-colors">
+                          +{ep.scenes.length - 4}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between mt-auto pt-3 border-t border-zinc-800/60 w-full text-[10px] text-zinc-500 font-semibold">
-                    <span className="flex items-center gap-1">
-                      🎞️ {ep.scenes.length} сцен
+                    <span className="flex items-center gap-1.5 bg-zinc-800/50 px-2 py-1 rounded-md text-zinc-300">
+                      🎞️ {ep.scenes?.length || 0} сцен
                     </span>
-                    <span className="text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Смотреть рилс →
+                    <span className={`transition-all duration-300 flex items-center gap-1 ${
+                      selectedEpisode?.id === ep.id ? "text-purple-400 translate-x-1" : "text-zinc-500 group-hover:text-purple-300 group-hover:translate-x-1"
+                    }`}>
+                      {selectedEpisode?.id === ep.id ? "Смотрим" : "Смотреть"} <span className="text-[8px]">▶</span>
                     </span>
                   </div>
                 </button>
