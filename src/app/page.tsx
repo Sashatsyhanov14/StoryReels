@@ -859,22 +859,26 @@ export default function Home() {
 
           {/* Bento Grid: Stats and Pricing */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Gamification / Level Widget */}
+            {/* Series Tracker Widget */}
             <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-900/30 p-6 backdrop-blur-xl shadow-2xl flex flex-col justify-center transition-all hover:border-zinc-700">
-              <h3 className="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest">Твой уровень</h3>
+              <h3 className="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest">Текущий сериал</h3>
               <div className="flex items-center gap-4 mb-4">
-                 <div className="text-4xl filter drop-shadow-md">🎬</div>
+                 <div className="text-4xl filter drop-shadow-md">📺</div>
                  <div>
-                   <div className="text-lg font-bold text-white tracking-tight">Новичок</div>
-                   <div className="text-[10px] text-zinc-500 font-mono">Сгенерировано: 1 видео</div>
+                   <div className="text-lg font-bold text-white tracking-tight">Эпизод 1</div>
+                   <div className="text-[10px] text-zinc-500 font-mono">Сюжет в разработке</div>
                  </div>
               </div>
               
-              <div className="w-full bg-zinc-950 rounded-full h-1.5 mb-2 overflow-hidden border border-zinc-800">
-                 <div className="bg-gradient-to-r from-purple-600 to-pink-500 h-1.5 rounded-full w-1/5 shadow-[0_0_10px_#a855f7]"></div>
+              <div className="flex items-center gap-1 mb-2">
+                 <div className="flex-1 bg-purple-500 h-1.5 rounded-full shadow-[0_0_10px_#a855f7]"></div>
+                 <div className="flex-1 bg-zinc-800 h-1.5 rounded-full"></div>
+                 <div className="flex-1 bg-zinc-800 h-1.5 rounded-full"></div>
+                 <div className="flex-1 bg-zinc-800 h-1.5 rounded-full"></div>
+                 <div className="flex-1 bg-zinc-800 h-1.5 rounded-full"></div>
               </div>
-              <p className="text-[9px] text-zinc-400 leading-tight mt-1">
-                Осталось 4 видео до уровня <strong className="text-purple-400 font-bold">Режиссер</strong> (+5 токенов)
+              <p className="text-[9px] text-zinc-400 leading-tight mt-1 text-center font-bold tracking-wider uppercase">
+                Продолжение следует...
               </p>
             </section>
 
@@ -1073,16 +1077,6 @@ export default function Home() {
                     </div>
                  </button>
 
-                 {/* Low Token Warning Widget (Loss Aversion Trigger) */}
-                 {tokenBalance < 3 && (
-                    <div className="relative overflow-hidden rounded-3xl border border-orange-500/50 bg-orange-500/10 p-5 backdrop-blur-xl shadow-lg mt-1 flex gap-4 items-center animate-pulse">
-                       <span className="text-3xl block">🔥</span>
-                       <div>
-                         <h3 className="text-xs font-bold text-orange-400 mb-0.5">Токены на исходе!</h3>
-                         <p className="text-[9px] text-orange-300/80 leading-tight">Осталось всего {tokenBalance}. Пополните баланс со скидкой 20% прямо сейчас.</p>
-                       </div>
-                    </div>
-                 )}
             </div>
 
             {/* Scenario Board Panel */}
