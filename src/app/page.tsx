@@ -98,7 +98,7 @@ export default function Home() {
   const [userId, setUserId] = useState("");
   const [tokenBalance, setTokenBalance] = useState(5);
   const [episodes, setEpisodes] = useState<Episode[]>(INITIAL_EPISODES);
-  const [isRegistered, setIsRegistered] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(true);
   const [email, setEmail] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
 
@@ -161,7 +161,7 @@ export default function Home() {
         setIsRegistered(true);
         setUserId(session.user.email || session.user.id);
       } else {
-        setIsRegistered(false);
+        setIsRegistered(true);
       }
     });
 
@@ -376,11 +376,8 @@ export default function Home() {
     const activePrompt = customPrompt || prompt;
     if (!activePrompt.trim()) return;
 
-    if (!isRegistered) {
-      setCurrentScreen("auth_sheet");
-    } else {
-      startGenerationFlow(activePrompt);
-    }
+    // Auth bypassed for UI prototyping
+    startGenerationFlow(activePrompt);
   };
 
   // Start Screen 3 (loader) & backend insert
@@ -388,10 +385,9 @@ export default function Home() {
     const finalPrompt = activePrompt || prompt;
     if (!finalPrompt.trim()) return;
 
-    // Check balance
+    // Bypassed balance restriction for UI testing - auto-refills
     if (tokenBalance < 1) {
-      alert("Недостаточно токенов! Пожалуйста, пополните баланс.");
-      return;
+      setTokenBalance(10);
     }
 
     setCurrentScreen("generating");
@@ -1378,7 +1374,7 @@ export default function Home() {
                     <button 
                       onClick={async () => {
                         await supabase.auth.signOut();
-                        setIsRegistered(false);
+                        setIsRegistered(true);
                         setSidebarOpen(false);
                         setCurrentScreen("landing");
                       }}
