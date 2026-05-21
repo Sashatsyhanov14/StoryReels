@@ -55,27 +55,58 @@ export async function GET(request: Request) {
 
     // Format to match the frontend Episode interface
     const formattedEpisodes = (episodes as DatabaseEpisode[]).map((ep) => {
-      const isPending = ep.status === 'pending';
-      const assets = ep.assets_json as PendingAssets | SceneItem[] | null;
-      const isProgressObj = isPending && assets && typeof assets === 'object' && !Array.isArray(assets);
+      const status = ep.status;
+      const assets = ep.assets_json;
       
-      const progress = isProgressObj ? (assets as PendingAssets).progress || 0 : 0;
-      const step = isProgressObj ? (assets as PendingAssets).step || 'idle' : 'idle';
-      const scenes = Array.isArray(assets) 
-        ? (assets as SceneItem[]) 
-        : (isProgressObj && (assets as PendingAssets).scenes ? ((assets as PendingAssets).scenes as unknown as SceneItem[]) : []);
-      const userPrompt = isProgressObj ? (assets as PendingAssets).userPrompt : undefined;
+      let progress = 0;
+      let step = 'idle';
+      let userPrompt = '';
+      let rawScenes: any[] = [];
+      
+      if (assets && typeof assets === 'object' && !Array.isArray(assets)) {
+        const progressObj = assets as Record<string, any>;
+        progress = progressObj.progress || 0;
+        step = progressObj.step || 'idle';
+        userPrompt = progressObj.userPrompt || '';
+        rawScenes = Array.isArray(progressObj.scenes) ? progressObj.scenes : [];
+      } else if (Array.isArray(assets)) {
+        rawScenes = assets;
+      }
+      
+      // Map scenes consistently
+      const scenes = rawScenes.map((s, i) => {
+        if (!s) return null;
+        
+        // Handle database differences between raw pending script and final ready formattedScenes
+        const voiceText = s.text || s.voice_text || `Сцена ${i + 1}`;
+        const imagePrompt = s.imagePrompt || s.image_prompt || '16-bit pixel art style, retro JRPG aesthetic';
+        const sceneText = s.sceneText || s.scene_text || `Описание кадра ${i + 1}`;
+        const cameraEffect = s.cameraEffect || s.camera_effect || 'zoom-in-fast';
+        const transition = s.transition || 'cross-fade';
+        const imageUrl = s.imageUrl || '';
+        const audioUrl = s.audioUrl || '#';
+        
+        return {
+          imageUrl,
+          audioUrl,
+          text: voiceText,
+          imagePrompt,
+          cameraEffect,
+          transition,
+          sceneText
+        };
+      }).filter(Boolean);
+
+      const title = scenes[0]?.text
+        ? scenes[0].text.substring(0, 20) + (scenes[0].text.length > 20 ? '...' : '')
+        : (userPrompt 
+           ? userPrompt.substring(0, 20) + (userPrompt.length > 20 ? '...' : '')
+           : 'Эпизод ' + ep.id.substring(0, 4));
 
       return {
         id: ep.id,
-        title: !isPending && scenes[0] 
-          ? scenes[0].text.substring(0, 20) + (scenes[0].text.length > 20 ? '...' : '')
-          : (isProgressObj && userPrompt 
-             ? userPrompt.substring(0, 20) + (userPrompt.length > 20 ? '...' : '')
-             : 'Эпизод ' + ep.id.substring(0, 4)),
-        prompt: isProgressObj && userPrompt 
-          ? userPrompt 
-          : (!isPending && scenes[0] ? scenes[0].imagePrompt : 'Описание отсутствует'),
+        title,
+        prompt: userPrompt || (scenes[0] ? scenes[0].imagePrompt : 'Описание отсутствует'),
         status: ep.status,
         createdAt: new Date(ep.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         scenes: scenes,

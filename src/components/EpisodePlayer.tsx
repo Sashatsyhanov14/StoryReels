@@ -18,6 +18,41 @@ export interface Scene {
 const SceneElement: React.FC<{ scene: Scene; duration: number }> = ({ scene, duration }) => {
   const frame = useCurrentFrame();
   
+  const [audioUrl, setAudioUrl] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (!scene.audioUrl || scene.audioUrl === "#" || scene.audioUrl === "") {
+      setAudioUrl("");
+      return;
+    }
+
+    if (typeof window !== "undefined" && scene.audioUrl.startsWith("data:audio")) {
+      try {
+        const base64Parts = scene.audioUrl.split(",");
+        if (base64Parts.length === 2) {
+          const mimeMatch = base64Parts[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : "audio/mp3";
+          const bstr = atob(base64Parts[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          const url = URL.createObjectURL(blob);
+          setAudioUrl(url);
+          return () => {
+            URL.revokeObjectURL(url);
+          };
+        }
+      } catch (e) {
+        console.error("Failed to convert audio to blob URL:", e);
+      }
+    }
+
+    setAudioUrl(scene.audioUrl);
+  }, [scene.audioUrl]);
+
   // Camera Effect interpolations
   let transform = "scale(1)";
   const effect = scene.cameraEffect || "";
@@ -112,6 +147,8 @@ const SceneElement: React.FC<{ scene: Scene; duration: number }> = ({ scene, dur
     }
   }
 
+  const hasValidImage = scene.imageUrl && scene.imageUrl !== "#" && scene.imageUrl !== "";
+
   return (
     <AbsoluteFill style={{ overflow: "hidden", backgroundColor: "black" }}>
       <div 
@@ -126,18 +163,46 @@ const SceneElement: React.FC<{ scene: Scene; duration: number }> = ({ scene, dur
           justifyContent: "center"
         }}
       >
-        <Img 
-          src={scene.imageUrl} 
-          style={{ 
-            width: "100%", 
-            height: "100%", 
-            objectFit: "cover" 
-          }} 
-        />
+        {hasValidImage ? (
+          <Img 
+            src={scene.imageUrl} 
+            style={{ 
+              width: "100%", 
+              height: "100%", 
+              objectFit: "cover" 
+            }} 
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-zinc-950 p-6 text-center relative overflow-hidden border border-zinc-800/50">
+            {/* Retro grid background */}
+            <div className="absolute inset-0 opacity-10 bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+            
+            {/* Glowing orb */}
+            <div className="absolute w-40 h-40 bg-purple-500/10 rounded-full blur-3xl"></div>
+            
+            {/* Animated scanning line */}
+            <div 
+              className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-purple-500 to-transparent"
+              style={{ top: `${(frame % 90) / 90 * 100}%` }}
+            />
+            
+            <div className="relative z-10 flex flex-col items-center gap-4 max-w-xs">
+              <div className="h-12 w-12 rounded-xl bg-purple-950/50 border border-purple-500/30 flex items-center justify-center animate-pulse">
+                <span className="text-purple-400 text-lg font-mono">⚡</span>
+              </div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-purple-300">
+                Загрузка кадра...
+              </h3>
+              <p className="text-[9px] text-zinc-500 font-medium italic line-clamp-3">
+                "{scene.imagePrompt || scene.text}"
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {scene.audioUrl && scene.audioUrl !== "#" && (
-        <Audio src={scene.audioUrl} />
+      {audioUrl && (
+        <Audio src={audioUrl} />
       )}
 
       {transitionOverlay}

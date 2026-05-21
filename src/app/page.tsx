@@ -434,7 +434,7 @@ export default function Home() {
     }
 
     try {
-      const batchSize = 5;
+      const batchSize = 1;
       const pendingIndices: number[] = [];
       for (let i = startIdx; i < scenes.length; i++) {
         pendingIndices.push(i);
@@ -1050,8 +1050,8 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* CapCut-style Animated Subtitles */}
-                  {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
+                  {/* CapCut-style Animated Subtitles (Hidden for now) */}
+                  {/* {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
                     <div className="mt-auto mb-10 px-4 w-full flex justify-center text-center pointer-events-none z-30">
                       <AnimatedSubtitles
                         text={selectedEpisode.scenes[activeSceneIndex].text}
@@ -1059,7 +1059,7 @@ export default function Home() {
                         isPlaying={isPlaying}
                       />
                     </div>
-                  )}
+                  )} */}
 
                   {/* Continuous Video Timeline Progress */}
                   {!showChatController && selectedEpisode.scenes.length > 0 && (
@@ -1675,8 +1675,8 @@ export default function Home() {
 
                       {/* Interactive overlay buttons inside player */}
                       <div className="absolute bottom-10 inset-x-4 z-30 flex justify-center items-center pointer-events-none w-full">
-                        {/* CapCut-style Animated Subtitles */}
-                        {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
+                        {/* CapCut-style Animated Subtitles (Hidden for now) */}
+                        {/* {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
                           <div className="w-full flex justify-center text-center pointer-events-none">
                             <AnimatedSubtitles
                               text={selectedEpisode.scenes[activeSceneIndex].text}
@@ -1684,7 +1684,7 @@ export default function Home() {
                               isPlaying={isPlaying}
                             />
                           </div>
-                        )}
+                        )} */}
                       </div>
 
                       {/* Continuous Video Timeline Progress */}
