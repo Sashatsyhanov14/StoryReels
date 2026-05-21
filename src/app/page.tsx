@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/lib/supabase-client";
 import { Icons } from "@/components/icons";
 import { AnimatedSubtitles } from "@/components/AnimatedSubtitles";
+import { EpisodePlayer } from "@/components/EpisodePlayer";
 
 interface Scene {
   imageUrl: string;
@@ -145,11 +146,19 @@ export default function Home() {
   ]);
 
   const advanceToNextSceneRef = useRef<() => void>(() => {});
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Active scene timer for progress bars
   const [sceneProgress, setSceneProgress] = useState(0);
-  const sceneProgressInterval = useRef<NodeJS.Timeout | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Check auth session on load
   useEffect(() => {
@@ -261,79 +270,6 @@ export default function Home() {
       }, 500);
     };
   }, [selectedEpisode, activeSceneIndex]);
-
-  // Audio system and timer simulation for story progress indicators
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const audioInstance = new Audio();
-      const handleEnded = () => {
-        advanceToNextSceneRef.current();
-      };
-      audioInstance.addEventListener("ended", handleEnded);
-      audioRef.current = audioInstance;
-
-      return () => {
-        audioInstance.pause();
-        audioInstance.removeEventListener("ended", handleEnded);
-      };
-    }
-  }, []);
-
-  // Handle active scene changes, audio loading, and progress intervals
-  useEffect(() => {
-    const audioInstance = audioRef.current;
-    if (!audioInstance) return;
-
-    audioInstance.pause();
-    if (sceneProgressInterval.current) {
-      clearInterval(sceneProgressInterval.current);
-    }
-
-    if (isPlaying && selectedEpisode && selectedEpisode.scenes.length > 0) {
-      const activeScene = selectedEpisode.scenes[activeSceneIndex];
-      const hasAudio = activeScene && activeScene.audioUrl && activeScene.audioUrl !== "#";
-
-      if (hasAudio) {
-        audioInstance.src = activeScene.audioUrl;
-        audioInstance.play().catch((err) => {
-          console.warn("Audio play prevented:", err);
-        });
-
-        // Track progress using audio duration
-        sceneProgressInterval.current = setInterval(() => {
-          if (audioInstance.duration) {
-            const currentPercentage = (audioInstance.currentTime / audioInstance.duration) * 100;
-            setSceneProgress(currentPercentage);
-          }
-        }, 100);
-      } else {
-        // Fallback progress interval (4.5s duration)
-        const sceneDuration = 4500;
-        let elapsed = 0;
-        const tick = 100;
-
-        sceneProgressInterval.current = setInterval(() => {
-          elapsed += tick;
-          const currentPercentage = (elapsed / sceneDuration) * 100;
-          if (currentPercentage >= 100) {
-            setSceneProgress(100);
-            clearInterval(sceneProgressInterval.current!);
-            advanceToNextSceneRef.current();
-          } else {
-            setSceneProgress(currentPercentage);
-          }
-        }, tick);
-      }
-    } else {
-      setSceneProgress(0);
-    }
-
-    return () => {
-      if (sceneProgressInterval.current) {
-        clearInterval(sceneProgressInterval.current);
-      }
-    };
-  }, [isPlaying, activeSceneIndex, selectedEpisode]);
 
   // Auth Action handlers
   const handleOAuthLogin = async (provider: "google" | "vk") => {
@@ -1053,68 +989,18 @@ export default function Home() {
                   onClick={handlePlayerScreenClick}
                   className="absolute inset-0 z-0 h-full w-full overflow-hidden flex items-center justify-center cursor-pointer"
                 >
-                  {selectedEpisode.scenes.map((scene, idx) => {
-                    const isActive = idx === activeSceneIndex;
-                    const isVideo = scene.imageUrl.endsWith(".mp4") || scene.imageUrl.includes("video");
-
-                    if (isVideo) {
-                      return (
-                        <video
-                          key={idx}
-                          src={scene.imageUrl}
-                          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
-                            isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-                          }`}
-                          autoPlay={isActive}
-                          loop
-                          muted
-                          playsInline
-                        />
-                      );
-                    }
-
-                    return (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img
-                        key={idx}
-                        src={scene.imageUrl}
-                        alt={scene.text}
-                        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-in-out ${
-                          isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
-                        } ${
-                          isPlaying && isActive
-                            ? scene.cameraEffect === "zoom-in-fast"
-                              ? "animate-zoom-in-fast"
-                              : scene.cameraEffect === "zoom-out-slow"
-                              ? "animate-zoom-out-slow"
-                              : scene.cameraEffect === "camera-shake"
-                              ? "animate-camera-shake"
-                              : scene.cameraEffect === "zoom-in-spin"
-                              ? "animate-zoom-in-spin"
-                              : scene.cameraEffect === "pan-left"
-                              ? "animate-pan-left"
-                              : scene.cameraEffect === "pan-right"
-                              ? "animate-pan-right"
-                              : scene.cameraEffect === "pan-diagonal"
-                              ? "animate-pan-diagonal"
-                              : idx % 2 === 0
-                              ? "animate-ken-burns-in"
-                              : "animate-ken-burns-out"
-                            : ""
-                        }`}
-                      />
-                    );
-                  })}
-
-                  {/* Transition Screen Overlay */}
-                  {transitionClass && (
-                    <div className={`absolute inset-0 z-20 pointer-events-none ${
-                      transitionClass === "fade-to-black" ? "animate-fade-to-black-transition" :
-                      transitionClass === "glitch-cut" ? "animate-glitch-cut-transition" :
-                      transitionClass === "white-flash" ? "animate-white-flash-transition" :
-                      transitionClass === "cross-blur" ? "animate-cross-blur-transition" :
-                      transitionClass === "cross-fade" ? "animate-cross-fade-transition" : ""
-                    }`} />
+                  {!isDesktop && (
+                    <EpisodePlayer
+                      scenes={selectedEpisode.scenes}
+                      isPlaying={isPlaying}
+                      onSceneChange={setActiveSceneIndex}
+                      onProgressChange={setSceneProgress}
+                      onPlaybackEnded={() => {
+                        setIsPlaying(false);
+                        setShowChatController(true);
+                        setSceneProgress(100);
+                      }}
+                    />
                   )}
 
                   {/* Pause Button Overlay indicator */}
@@ -1746,12 +1632,17 @@ export default function Home() {
                   <div className="relative w-full aspect-[9/16] max-h-[580px] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.8)]">
                     {/* Media Content */}
                     <div className="w-full h-full relative" onClick={handlePlayerScreenClick}>
-                      {selectedEpisode.scenes[activeSceneIndex] && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img 
-                          src={selectedEpisode.scenes[activeSceneIndex].imageUrl} 
-                          alt="" 
-                          className="w-full h-full object-cover select-none"
+                      {isDesktop && (
+                        <EpisodePlayer
+                          scenes={selectedEpisode.scenes}
+                          isPlaying={isPlaying}
+                          onSceneChange={setActiveSceneIndex}
+                          onProgressChange={setSceneProgress}
+                          onPlaybackEnded={() => {
+                            setIsPlaying(false);
+                            setShowChatController(true);
+                            setSceneProgress(100);
+                          }}
                         />
                       )}
 

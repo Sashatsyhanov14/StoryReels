@@ -267,7 +267,8 @@ export async function POST(request: Request) {
         text: s.voice_text,
         imagePrompt: s.image_prompt,
         cameraEffect: s.camera_effect,
-        transition: s.transition
+        transition: s.transition,
+        sceneText: s.scene_text
       }));
 
       const { error: updateErr } = await retryDb(async () => {

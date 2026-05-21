@@ -48,6 +48,9 @@ export async function GET(request: Request) {
       imagePrompt: string;
       imageUrl: string;
       audioUrl: string;
+      sceneText?: string;
+      cameraEffect?: string;
+      transition?: string;
     }
 
     // Format to match the frontend Episode interface
