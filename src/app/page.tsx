@@ -823,26 +823,36 @@ export default function Home() {
             {showPromptDrawer && (
               <>
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity" onClick={() => setShowPromptDrawer(false)}></div>
-                <div className="absolute bottom-0 inset-x-0 bg-zinc-950 border-t border-zinc-800 rounded-t-3xl p-5 z-40 flex flex-col gap-4 animate-slide-up shadow-2xl">
+                <div className="absolute bottom-0 inset-x-0 bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-900 rounded-t-[2rem] p-6 z-40 flex flex-col gap-4.5 animate-slide-up shadow-[0_-15px_45px_rgba(0,0,0,0.9)]">
                   <div className="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-1"></div>
-                  <h3 className="text-sm font-bold text-white">Введите ваш вариант продолжения</h3>
+                  
+                  <div className="flex flex-col gap-1.5">
+                    <h3 className="text-xs font-mono uppercase tracking-widest text-purple-400 font-black">
+                      Генератор серии
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 font-mono">
+                      Опишите, что произойдет с героем дальше в этом эпизоде.
+                    </p>
+                  </div>
+
                   <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                     placeholder="Например: Каэль подключается к терминалу и взламывает серверы корпорации, вызывая перегрузку сети..."
-                    className="w-full h-24 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 resize-none transition-colors"
+                    className="w-full h-28 bg-zinc-950 border border-zinc-900 rounded-2xl p-4 text-[11px] text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-purple-500/80 focus:shadow-[0_0_15px_rgba(168,85,247,0.15)] resize-none transition-all"
                   />
-                  <div className="flex gap-2">
+
+                  <div className="flex gap-3">
                     <button 
                       onClick={() => setShowPromptDrawer(false)}
-                      className="flex-1 py-3 rounded-xl border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
+                      className="flex-1 py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800/80 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-all active:scale-[0.98]"
                     >
                       Отмена
                     </button>
                     <button 
                       onClick={() => handleStartGeneration()}
                       disabled={!prompt.trim() || isGenerating}
-                      className="flex-1 py-3 bg-white text-black rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
+                      className="flex-1 py-3.5 bg-white hover:bg-zinc-100 text-black rounded-xl text-[10px] font-mono font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)]"
                     >
                       {isGenerating ? (
                         <>
@@ -1124,18 +1134,22 @@ export default function Home() {
                 <div className="relative z-10 w-full flex flex-col justify-between h-full pointer-events-none">
                   
                   {/* Top Stories Progress Indicators */}
-                  <div className="w-full pt-12 pb-2 px-3 flex flex-col gap-2.5 bg-gradient-to-b from-black/80 to-transparent">
+                  <div className="w-full pt-16 pb-3 px-4 flex flex-col gap-3 bg-gradient-to-b from-black/90 via-black/40 to-transparent">
                     {/* Progress bars row */}
-                    <div className="flex gap-1 w-full">
+                    <div className="flex gap-1.5 w-full">
                       {selectedEpisode.scenes.map((_, idx) => {
                         const isWatched = idx < activeSceneIndex;
                         const isCurrent = idx === activeSceneIndex;
                         
                         return (
-                          <div key={idx} className="h-1 flex-1 bg-white/25 rounded-full overflow-hidden">
+                          <div key={idx} className="h-[3px] flex-1 bg-white/15 rounded-full overflow-hidden">
                             <div 
                               className={`h-full transition-all ease-linear ${
-                                isWatched ? "w-full bg-white" : isCurrent ? "bg-white" : "w-0 bg-transparent"
+                                isWatched 
+                                  ? "w-full bg-purple-500 shadow-[0_0_8px_#a855f7]" 
+                                  : isCurrent 
+                                  ? "bg-gradient-to-r from-purple-500 to-pink-500 shadow-[0_0_10px_#d946ef]" 
+                                  : "w-0 bg-transparent"
                               }`}
                               style={isCurrent ? { width: `${sceneProgress}%` } : {}}
                             />
@@ -1149,17 +1163,18 @@ export default function Home() {
                       {/* Sidebar Menu icon */}
                       <button 
                         onClick={() => setSidebarOpen(true)}
-                        className="text-white hover:opacity-85 active:scale-95 transition-all p-1"
+                        className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-black/60 hover:border-white/20 active:scale-95 transition-all shadow-lg"
                         title="Моя библиотека"
                       >
-                        <Icons.List className="w-5 h-5 drop-shadow-[0_2px_5px_rgba(0,0,0,0.5)]" />
+                        <Icons.List className="w-5 h-5" />
                       </button>
 
-                      <div className="text-center flex flex-col">
-                        <span className="text-[9px] font-mono tracking-widest text-white/95 uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-black">
+                      {/* Episode Title Badge */}
+                      <div className="bg-zinc-950/60 backdrop-blur-md border border-white/10 px-4 py-1.5 rounded-full flex flex-col items-center shadow-md">
+                        <span className="text-[10px] font-mono tracking-widest text-white uppercase font-black">
                           {selectedEpisode.title}
                         </span>
-                        <span className="text-[8px] text-zinc-400 font-mono drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                        <span className="text-[8px] text-zinc-400 font-mono tracking-wide mt-0.5">
                           кадр {activeSceneIndex + 1} из {selectedEpisode.scenes.length}
                         </span>
                       </div>
@@ -1170,26 +1185,22 @@ export default function Home() {
                           setPrompt("");
                           setShowPromptDrawer(true);
                         }}
-                        className="text-white/90 hover:opacity-85 active:scale-95 transition-all p-1"
+                        className="h-10 w-10 rounded-full bg-purple-500/10 backdrop-blur-md border border-purple-500/20 flex items-center justify-center text-purple-300 hover:bg-purple-500/20 active:scale-95 transition-all shadow-lg shadow-purple-500/5"
                         title="Создать сериал"
                       >
-                        <Icons.Sparkles className="w-5 h-5 drop-shadow-[0_2px_5px_rgba(0,0,0,0.5)] text-purple-400 fill-purple-400/20" />
+                        <Icons.Sparkles className="w-5 h-5 fill-purple-400/25" />
                       </button>
                     </div>
                   </div>
 
                   {/* Subtitles text near bottom-32 */}
                   {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
-                    <div className="mt-auto mb-36 px-5 w-full flex justify-center text-center">
-                      <p 
-                        className="text-white font-extrabold text-sm sm:text-base leading-snug tracking-wide text-center"
-                        style={{
-                          textShadow: "0 2px 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8)",
-                          WebkitTextStroke: "0.2px black"
-                        }}
-                      >
-                        {selectedEpisode.scenes[activeSceneIndex].text}
-                      </p>
+                    <div className="mt-auto mb-36 px-4 w-full flex justify-center text-center pointer-events-none z-30 animate-fade-in">
+                      <div className="w-full max-w-[340px] bg-black/65 backdrop-blur-md border border-zinc-800/40 rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.75)]">
+                        <p className="text-white font-extrabold text-xs sm:text-sm leading-relaxed tracking-wide">
+                          {selectedEpisode.scenes[activeSceneIndex].text}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1332,29 +1343,29 @@ export default function Home() {
                 ></div>
                 
                 {/* Sidebar Container */}
-                <div className="absolute left-0 top-0 bottom-0 w-[80%] max-w-[285px] bg-zinc-950 border-r border-zinc-900 z-50 flex flex-col justify-between shadow-[10px_0_40px_rgba(0,0,0,0.9)] animate-slide-right-panel">
+                <div className="absolute left-0 top-0 bottom-0 w-[80%] max-w-[285px] bg-zinc-950/95 backdrop-blur-2xl border-r border-zinc-900 z-50 flex flex-col justify-between shadow-[15px_0_50px_rgba(0,0,0,0.95)] animate-slide-right-panel">
                   
                   {/* Sidebar Header */}
-                  <div className="p-5 border-b border-zinc-900 flex flex-col gap-4">
+                  <div className="p-5 border-b border-zinc-900/60 flex flex-col gap-4.5">
                     <div className="flex items-center gap-3">
                       {/* Avatar placeholder */}
-                      <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center border border-purple-400/25 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
-                        <span className="font-bold text-white text-sm">
-                          {userId ? userId.substring(0, 1).toUpperCase() : "?"}
+                      <div className="h-10 w-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+                        <span className="font-mono font-black text-purple-300 text-xs">
+                          {userId ? userId.substring(0, 2).toUpperCase() : "G"}
                         </span>
                       </div>
                       <div className="flex flex-col overflow-hidden">
                         <span className="text-[10px] font-mono text-zinc-400 font-bold truncate">
                           {userId || "Гость"}
                         </span>
-                        <span className="text-[8px] text-purple-400 uppercase tracking-widest font-black">
+                        <span className="text-[8px] text-purple-400 uppercase tracking-widest font-black mt-0.5">
                           СТАТУС: АКТИВЕН
                         </span>
                       </div>
                     </div>
 
                     {/* Token Balance Card */}
-                    <div className="bg-zinc-900/50 border border-zinc-900 rounded-2xl p-3 flex justify-between items-center">
+                    <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-4 flex justify-between items-center shadow-inner">
                       <div className="flex flex-col">
                         <span className="text-[8px] text-zinc-500 uppercase tracking-wider font-bold">Баланс</span>
                         <span className="text-xs font-black text-white flex items-center gap-1.5 mt-0.5">
@@ -1366,7 +1377,7 @@ export default function Home() {
                           setSidebarOpen(false);
                           handleTopUp();
                         }}
-                        className="bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer active:scale-95"
+                        className="bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-mono font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all cursor-pointer active:scale-95 shadow-[0_0_15px_rgba(168,85,247,0.25)]"
                       >
                         Пополнить
                       </button>
@@ -1375,7 +1386,7 @@ export default function Home() {
 
                   {/* Series List (vertical scroll) */}
                   <div className="flex-grow overflow-y-auto px-4 py-4 flex flex-col gap-3 scrollbar-none">
-                    <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest pl-1">
+                    <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest pl-1 font-bold">
                       Моя библиотека
                     </h4>
 
