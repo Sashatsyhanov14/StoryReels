@@ -365,12 +365,30 @@ export default function Home() {
       setPrompt("");
       setShowPromptDrawer(false);
 
-      // 2. Generate scenes in the background immediately (bypassing loader & paywall views)
-      await resumeGeneration(episodeId, userId, scenes);
+      // Create a temporary Episode object so we can show it immediately in the player
+      const tempEpisode: Episode = {
+        id: episodeId,
+        title: `Серия ${episodes.filter(ep => ep.showId === activeShowId).length + 1}`,
+        prompt: finalPrompt,
+        status: "pending",
+        scenes: scenes,
+        createdAt: new Date().toISOString(),
+        showId: activeShowId || undefined
+      };
 
-      // 3. Switch directly to player
+      setEpisodes(prev => [tempEpisode, ...prev]);
+      setSelectedEpisode(tempEpisode);
+      setActiveSceneIndex(0);
+      setShowChatController(false);
+      setIsPlaying(true);
+
+      // 2. Switch directly to player (bypassing loader & paywall views)
       setCurrentScreen("player");
-      setIsGenerating(false);
+
+      // 3. Generate scenes in the background immediately
+      // Do not await this, so it runs asynchronously in the background
+      resumeGeneration(episodeId, userId, scenes);
+
     } catch (err) {
       console.error(err);
       alert(`Ошибка инициализации: ${err instanceof Error ? err.message : String(err)}`);
@@ -455,13 +473,26 @@ export default function Home() {
           throw new Error(`Ошибка при рендере сцен: ${batch.map((idx) => idx + 1).join(", ")}`);
         }
         
+        // Live sync: fetch updated episode state and set it
+        const syncResponse = await fetch(`/api/episodes?userId=${currentUserId}`);
+        if (syncResponse.ok) {
+          const syncData = await syncResponse.json();
+          const episodesList: Episode[] = syncData.episodes || [];
+          setEpisodes(episodesList);
+          
+          const updatedEp = episodesList.find((ep) => ep.id === episodeId);
+          if (updatedEp) {
+            setSelectedEpisode(updatedEp);
+          }
+        }
+
         const data = await response.json();
         if (data.isCompleted) {
           break;
         }
       }
 
-      // Sync and retrieve the ready episode
+      // Final Sync and retrieve the ready episode
       const response = await fetch(`/api/episodes?userId=${currentUserId}`);
       if (response.ok) {
         const data = await response.json();
@@ -471,14 +502,16 @@ export default function Home() {
         const finishedEp = episodesList.find((ep) => ep.id === episodeId);
         if (finishedEp) {
           setSelectedEpisode(finishedEp);
-          setActiveSceneIndex(0);
-          setShowChatController(false);
-          setIsPlaying(true);
+          // Only show chat choices/stop playing once generation fully finished
+          if (selectedEpisode?.id === episodeId) {
+            setShowChatController(true);
+            setIsPlaying(false);
+          }
         }
       }
+      setIsGenerating(false);
     } catch (err) {
       console.error("Batch rendering failed:", err);
-      alert(`Ошибка рендеринга: ${err instanceof Error ? err.message : String(err)}`);
       
       // Set status to failed in DB
       await fetch(`/api/episodes/fail`, {
@@ -492,9 +525,12 @@ export default function Home() {
       if (response.ok) {
         const data = await response.json();
         setEpisodes(data.episodes || []);
+        
+        const failedEp = (data.episodes || []).find((ep: any) => ep.id === episodeId);
+        if (failedEp) {
+          setSelectedEpisode(failedEp);
+        }
       }
-      
-      setCurrentScreen("landing");
       setIsGenerating(false);
     }
   };
@@ -557,7 +593,10 @@ export default function Home() {
 
     // Initiate next episode creation using the chat choice as the prompt
     setTimeout(() => {
-      // Transition back to generating step
+      // Clear previous chat messages for the new episode flow
+      setChatMessages([
+        { sender: "ai", text: "Сюжет оборвался на самом интересном месте! Выберите продолжение или введите свой вариант:" }
+      ]);
       handleStartGeneration(messageText);
     }, 800);
   };
@@ -1001,6 +1040,19 @@ export default function Home() {
                         setSceneProgress(100);
                       }}
                     />
+                  )}
+
+                  {/* Live AI Render Status Badge */}
+                  {(selectedEpisode.status === "pending" || isGenerating) && (
+                    <div className="absolute top-28 right-4 z-40 bg-zinc-950/80 backdrop-blur-md border border-purple-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg shadow-purple-500/10 pointer-events-auto">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                      </span>
+                      <span className="text-[9px] font-bold text-purple-300 uppercase tracking-widest font-mono">
+                        ИИ РЕНДЕР: {selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/{selectedEpisode.scenes.length}
+                      </span>
+                    </div>
                   )}
 
                   {/* Pause Button Overlay indicator */}
@@ -1676,6 +1728,19 @@ export default function Home() {
                         />
                       )}
 
+                      {/* Live AI Render Status Badge */}
+                      {(selectedEpisode.status === "pending" || isGenerating) && (
+                        <div className="absolute top-4 right-4 z-40 bg-zinc-950/80 backdrop-blur-md border border-purple-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg shadow-purple-500/10 pointer-events-auto">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                          </span>
+                          <span className="text-[9px] font-bold text-purple-300 uppercase tracking-widest font-mono">
+                            ИИ РЕНДЕР: {selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/{selectedEpisode.scenes.length}
+                          </span>
+                        </div>
+                      )}
+
                       {/* Progress bars row at the top (Removed/Hidden to feel like a video per user request) */}
                       {/* <div className="absolute top-4 inset-x-3 z-30 flex gap-1 pointer-events-none">
                         {selectedEpisode.scenes.map((_, idx) => {
@@ -1731,7 +1796,7 @@ export default function Home() {
                     </div>
 
                     {/* Active Simulation Progress Overlay */}
-                    {(isGenerating || currentScreen === "generating") && (
+                    {currentScreen === "generating" && (
                       <div className="absolute inset-0 bg-black/95 z-40 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
                         <div className="relative mb-4">
                           <div className="h-16 w-16 rounded-full border-[3px] border-purple-500/10 border-t-purple-500 animate-spin"></div>
