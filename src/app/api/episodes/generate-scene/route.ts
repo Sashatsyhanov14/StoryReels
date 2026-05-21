@@ -166,55 +166,18 @@ async function generateAudio(text: string): Promise<string> {
 }
 
 function saveAudioLocally(episodeId: string, sceneIndex: number, audioBase64: string): string {
-  if (audioBase64 === '#') return '#';
-  try {
-    const base64Data = audioBase64.replace(/^data:audio\/[a-z0-9]+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    const dir = path.join(process.cwd(), 'public', 'audio', episodeId);
-    fs.mkdirSync(dir, { recursive: true });
-
-    const fileName = `scene_${sceneIndex}.mp3`;
-    const filePath = path.join(dir, fileName);
-    fs.writeFileSync(filePath, buffer);
-
-    return `/audio/${episodeId}/${fileName}`;
-  } catch (err) {
-    console.error('Failed to save audio locally:', err);
-    return audioBase64;
-  }
+  // On Vercel, the file system is read-only. 
+  // We return the base64 string directly which the browser can play as a data URI.
+  return audioBase64;
 }
 
 async function saveImageLocally(episodeId: string, sceneIndex: number, imageUrl: string): Promise<string> {
+  // On Vercel, the file system is read-only.
+  // We return the remote URL directly. For long-term persistence, 
+  // this should be updated to upload to Supabase Storage.
   if (!imageUrl || imageUrl.startsWith('https://images.unsplash.com')) {
     return imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
   }
-
-  for (let i = 0; i < 3; i++) {
-    try {
-      const response = await fetch(imageUrl, {
-        headers: { 'Connection': 'close' }
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to download image: ${response.status}`);
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-
-      const dir = path.join(process.cwd(), 'public', 'images', episodeId);
-      fs.mkdirSync(dir, { recursive: true });
-
-      const fileName = `scene_${sceneIndex}.png`;
-      const filePath = path.join(dir, fileName);
-      fs.writeFileSync(filePath, buffer);
-
-      return `/images/${episodeId}/${fileName}`;
-    } catch (err) {
-      console.warn(`Attempt ${i + 1} to save image locally failed:`, err);
-      if (i < 2) await new Promise(res => setTimeout(res, 1000));
-    }
-  }
-
   return imageUrl;
 }
 
