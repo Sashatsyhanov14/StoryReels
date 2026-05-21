@@ -1202,11 +1202,23 @@ export default function Home() {
 
                   {/* CapCut-style Animated Subtitles */}
                   {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
-                    <div className="mt-auto mb-36 px-4 w-full flex justify-center text-center pointer-events-none z-30">
+                    <div className="mt-auto mb-10 px-4 w-full flex justify-center text-center pointer-events-none z-30">
                       <AnimatedSubtitles
                         text={selectedEpisode.scenes[activeSceneIndex].text}
                         sceneKey={activeSceneIndex}
                         isPlaying={isPlaying}
+                      />
+                    </div>
+                  )}
+
+                  {/* Continuous Video Timeline Progress */}
+                  {!showChatController && selectedEpisode.scenes.length > 0 && (
+                    <div className="absolute bottom-0 inset-x-0 h-1.5 bg-zinc-900/80 z-40">
+                      <div 
+                        className="h-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)] transition-all ease-linear"
+                        style={{ 
+                          width: `${((activeSceneIndex + (sceneProgress / 100)) / selectedEpisode.scenes.length) * 100}%` 
+                        }}
                       />
                     </div>
                   )}
@@ -1642,16 +1654,30 @@ export default function Home() {
                       )}
 
                       {/* Interactive overlay buttons inside player */}
-                      <div className="absolute bottom-5 inset-x-4 z-30 flex justify-center items-center pointer-events-auto w-full">
+                      <div className="absolute bottom-10 inset-x-4 z-30 flex justify-center items-center pointer-events-none w-full">
                         {/* CapCut-style Animated Subtitles */}
                         {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
-                          <AnimatedSubtitles
-                            text={selectedEpisode.scenes[activeSceneIndex].text}
-                            sceneKey={activeSceneIndex}
-                            isPlaying={isPlaying}
-                          />
+                          <div className="w-full flex justify-center text-center pointer-events-none">
+                            <AnimatedSubtitles
+                              text={selectedEpisode.scenes[activeSceneIndex].text}
+                              sceneKey={activeSceneIndex}
+                              isPlaying={isPlaying}
+                            />
+                          </div>
                         )}
                       </div>
+
+                      {/* Continuous Video Timeline Progress */}
+                      {!showChatController && selectedEpisode.scenes.length > 0 && (
+                        <div className="absolute bottom-0 inset-x-0 h-1.5 bg-zinc-900/80 z-40 pointer-events-none">
+                          <div 
+                            className="h-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)] transition-all ease-linear"
+                            style={{ 
+                              width: `${((activeSceneIndex + (sceneProgress / 100)) / selectedEpisode.scenes.length) * 100}%` 
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Active Simulation Progress Overlay */}
