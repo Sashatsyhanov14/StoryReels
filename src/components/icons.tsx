@@ -301,5 +301,19 @@ export const Icons = {
       <path d="M6 2v4a4 4 0 0 0 2 3.46L12 12l4-2.54A4 4 0 0 0 18 6V2" />
       <path d="M6 22v-4a4 4 0 0 1 2-3.46L12 12l4 2.54a4 4 0 0 1 2 3.46v4" opacity="0.5" />
     </svg>
+  ),
+  Plus: (props: React.SVGProps<SVGSVGElement>) => (
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </svg>
   )
 };

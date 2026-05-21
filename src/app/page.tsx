@@ -1266,6 +1266,22 @@ export default function Home() {
                       )}
                     </div>
 
+                    {!activeShowId && (
+                      <button
+                        onClick={() => {
+                          setSelectedEpisode(null);
+                          setActiveShowId(null);
+                          setPrompt("");
+                          setShowPromptDrawer(true);
+                          setSidebarOpen(false);
+                        }}
+                        className="w-full py-2.5 px-4 mb-1 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/30 hover:border-purple-500/50 text-purple-300 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                      >
+                        <Icons.Plus className="w-4 h-4 text-purple-400" />
+                        Добавить сериал
+                      </button>
+                    )}
+
                     {activeShowId ? (
                       episodes.filter(ep => ep.showId === activeShowId).length === 0 ? (
                         <div className="text-center py-6 text-zinc-600 text-[10px]">Нет серий</div>
@@ -1469,6 +1485,20 @@ export default function Home() {
                 )}
               </div>
 
+              {!activeShowId && (
+                <button
+                  onClick={() => {
+                    setSelectedEpisode(null);
+                    setActiveShowId(null);
+                    setPrompt("");
+                  }}
+                  className="w-full py-2.5 px-4 mb-1 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/30 hover:border-purple-500/50 text-purple-300 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                >
+                  <Icons.Plus className="w-4 h-4 text-purple-400" />
+                  Добавить сериал
+                </button>
+              )}
+
               {activeShowId ? (
                 episodes.filter(ep => ep.showId === activeShowId).length === 0 ? (
                   <div className="text-center py-8 text-zinc-600 text-xs">Нет серий</div>
@@ -1646,8 +1676,8 @@ export default function Home() {
                         />
                       )}
 
-                      {/* Progress bars row at the top */}
-                      <div className="absolute top-4 inset-x-3 z-30 flex gap-1 pointer-events-none">
+                      {/* Progress bars row at the top (Removed/Hidden to feel like a video per user request) */}
+                      {/* <div className="absolute top-4 inset-x-3 z-30 flex gap-1 pointer-events-none">
                         {selectedEpisode.scenes.map((_, idx) => {
                           const isWatched = idx < activeSceneIndex;
                           const isCurrent = idx === activeSceneIndex;
@@ -1662,7 +1692,7 @@ export default function Home() {
                             </div>
                           );
                         })}
-                      </div>
+                      </div> */}
 
                       {/* Play/Pause Overlay indicator */}
                       {!isPlaying && !showChatController && (
