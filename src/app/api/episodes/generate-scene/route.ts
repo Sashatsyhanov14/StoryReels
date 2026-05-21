@@ -90,7 +90,7 @@ async function generateImage(prompt: string): Promise<string> {
   let lastError: unknown = null;
   for (let i = 0; i < 3; i++) {
     try {
-      const response = await fetch('https://api.gen-api.ru/api/v1/networks/z-image', {
+      const response = await fetch('https://api.gen-api.ru/api/v1/networks/sdxl-lightning', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ async function generateImage(prompt: string): Promise<string> {
         },
         body: JSON.stringify({
           prompt: finalPrompt,
-          aspect_ratio: '9:16'
+          image_size: 'portrait_16_9'
         })
       });
 

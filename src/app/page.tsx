@@ -615,6 +615,121 @@ export default function Home() {
     setIsPlaying((prev) => !prev);
   };
 
+  // A beautiful loader screen for the generation state
+  const renderGeneratingLoader = () => {
+    const doneCount = selectedEpisode?.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length || 0;
+    const totalCount = selectedEpisode?.scenes.length || 12;
+    const progressPercent = Math.min(100, Math.round((doneCount / totalCount) * 100));
+
+    let progressMessage = "Инициализация видеодвижка...";
+    if (progressPercent === 100) {
+      progressMessage = "Сборка видео завершена! Открываем плеер...";
+    } else if (doneCount > 0) {
+      progressMessage = `Создаем сцену ${doneCount + 1} из ${totalCount}...`;
+    } else {
+      progressMessage = "Сценарист пишет сюжет и промпты...";
+    }
+
+    const radius = 50;
+    const circumference = 2 * Math.PI * radius;
+    const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+
+    return (
+      <div className="h-full w-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-950 via-zinc-950 to-black text-white flex flex-col items-center justify-center p-6 select-none animate-fade-in">
+        {/* Glowing Header badge */}
+        <div className="mb-8 flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 px-4 py-2 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+          <span className="h-2 w-2 rounded-full bg-purple-500 animate-ping"></span>
+          <span className="text-[10px] font-mono font-black tracking-wider uppercase text-purple-400">
+            ИИ-Режиссер: Генерация
+          </span>
+        </div>
+
+        {/* Center Progress Circle */}
+        <div className="relative mb-8 flex items-center justify-center">
+          {/* Outer glow effect */}
+          <div className="absolute inset-0 bg-purple-500/5 blur-3xl rounded-full"></div>
+          
+          <svg className="w-40 h-40 transform -rotate-90 z-10">
+            {/* Background circle */}
+            <circle
+              cx="80"
+              cy="80"
+              r={radius}
+              className="stroke-zinc-900"
+              strokeWidth="6"
+              fill="transparent"
+            />
+            {/* Progress circle */}
+            <circle
+              cx="80"
+              cy="80"
+              r={radius}
+              className="stroke-purple-500 transition-all duration-500 ease-out"
+              strokeWidth="6"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              fill="transparent"
+            />
+          </svg>
+          
+          {/* Central Percent Text */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+            <span className="text-3xl font-black font-mono tracking-tight text-white">
+              {progressPercent}%
+            </span>
+            <span className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-wider mt-1">
+              {doneCount}/{totalCount} кадров
+            </span>
+          </div>
+        </div>
+
+        {/* Status Text Message */}
+        <div className="text-center max-w-sm mb-8 px-4">
+          <h3 className="text-sm font-bold text-white tracking-wide mb-2 animate-pulse duration-1000">
+            {progressMessage}
+          </h3>
+          <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
+            Наш искусственный интеллект одновременно пишет сценарий, рисует аниме-кадры, озвучивает реплики и накладывает переходы. Не закрывайте страницу.
+          </p>
+        </div>
+
+        {/* AI Console Logs Box */}
+        <div className="w-full max-w-md bg-black/60 border border-zinc-900/80 rounded-2xl p-4 font-mono text-[10px] text-zinc-400 max-h-[140px] overflow-y-auto scrollbar-none space-y-1.5 backdrop-blur-sm shadow-inner">
+          <div className="flex items-center justify-between border-b border-zinc-900/60 pb-1.5 mb-2">
+            <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-extrabold">Логи ИИ-режиссера</span>
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              <span className="text-[7px] text-zinc-500 font-bold uppercase tracking-wider">online</span>
+            </div>
+          </div>
+          <p className="text-zinc-600">[Система] ⚡ Инициализация видеодвижка StoryReels...</p>
+          <p className="text-zinc-600">[Система] ⚙️ Стиль: 16-bit JRPG Pixel Art (portrait_16_9)</p>
+          {selectedEpisode?.scenes.map((scene, idx) => {
+            const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
+            const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
+            
+            if (isDone) {
+              return (
+                <p key={idx} className="text-emerald-400/90">
+                  ✓ Сцена {idx + 1}: Кадр отрисован (576x1024), озвучка синтезирована.
+                </p>
+              );
+            }
+            if (isCurrent) {
+              return (
+                <p key={idx} className="text-purple-400 animate-pulse">
+                  ⚡ Сцена {idx + 1}: Генерация графики & синтез речи...
+                </p>
+              );
+            }
+            return null;
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-[#030303] text-zinc-100 flex flex-col items-center justify-center font-sans overflow-x-hidden relative selection:bg-purple-600/40 select-none">
       
@@ -1015,121 +1130,7 @@ export default function Home() {
             {/* ========================================================================= */}
             {/* SCREEN 4: LIVE RENDER GENERATOR (MOBILE) */}
             {/* ========================================================================= */}
-            {currentScreen === "generating" && (
-              <div className="h-full w-full bg-zinc-950 text-white flex flex-col p-4 overflow-y-auto animate-fade-in select-none">
-                {/* Mobile Header */}
-                <div className="w-full mb-4 pb-3 border-b border-zinc-900 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">🎬</span>
-                    <div>
-                      <h2 className="text-xs font-black uppercase text-white tracking-wider">ИИ-Режиссер</h2>
-                      <p className="text-[9px] text-zinc-500">Генерация серии в прямом эфире</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 bg-zinc-900/60 px-3 py-1.5 rounded-full border border-zinc-800">
-                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse"></span>
-                    <span className="text-[9px] font-mono text-purple-400 font-bold uppercase">
-                      {selectedEpisode ? `${selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/12 готово` : "Сценарий..."}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Progress bar info */}
-                <div className="bg-zinc-900/30 border border-zinc-900 rounded-2xl p-3.5 mb-4 flex flex-col gap-2">
-                  <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400">
-                    <span>Рендеринг JRPG кадров...</span>
-                    <span>{selectedEpisode ? Math.round((selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100) : 0}%</span>
-                  </div>
-                  <div className="w-full h-2 bg-zinc-950 border border-zinc-900 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-full shadow-[0_0_10px_#a855f7] transition-all duration-500"
-                      style={{ 
-                        width: `${selectedEpisode ? (selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100 : 0}%` 
-                      }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Scene Grid (2 columns on mobile) */}
-                <div className="grid grid-cols-2 gap-2 flex-grow overflow-y-auto max-h-[60vh] mb-4 pb-4">
-                  {selectedEpisode?.scenes.map((scene, idx) => {
-                    const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
-                    const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
-
-                    return (
-                      <div 
-                        key={idx}
-                        className={`relative rounded-xl overflow-hidden border transition-all duration-300 ${
-                          isDone 
-                            ? "border-emerald-500/20 bg-zinc-900/20" 
-                            : isCurrent 
-                            ? "border-purple-500/50 bg-purple-950/5 animate-pulse" 
-                            : "border-zinc-900 bg-zinc-950"
-                        }`}
-                      >
-                        <div className="aspect-[9/16] relative w-full flex flex-col justify-between p-2">
-                          {/* Top row */}
-                          <div className="flex items-center justify-between z-10">
-                            <span className="bg-black/60 backdrop-blur-md text-[8px] font-mono font-extrabold px-1.5 py-0.5 rounded text-zinc-400">
-                              #{idx + 1}
-                            </span>
-                            {isDone ? (
-                              <span className="text-[8px] text-emerald-400 font-bold bg-emerald-500/10 px-1 py-0.5 rounded">✓</span>
-                            ) : isCurrent ? (
-                              <span className="text-[8px] text-purple-400 font-bold bg-purple-500/10 px-1 py-0.5 rounded animate-pulse">⚡</span>
-                            ) : null}
-                          </div>
-
-                          {/* Image preview */}
-                          <div className="absolute inset-0 z-0">
-                            {isDone ? (
-                              <img 
-                                src={scene.imageUrl} 
-                                alt={`Кадр ${idx + 1}`} 
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-b from-zinc-950 to-zinc-900/20 flex flex-col items-center justify-center">
-                                {isCurrent ? (
-                                  <div className="h-4 w-4 border border-purple-500 border-t-transparent animate-spin rounded-full"></div>
-                                ) : (
-                                  <span className="text-zinc-800 text-[16px]">🎨</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Bottom description */}
-                          <div className="z-10 bg-black/75 p-1.5 rounded-lg border border-zinc-900/50 backdrop-blur-[1px] mt-auto">
-                            <p className="text-[8px] leading-snug font-medium text-zinc-400 line-clamp-2">
-                              {scene.text || "Сценарий..."}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Console footer logs */}
-                <div className="bg-black border border-zinc-900 rounded-2xl p-3 font-mono text-[9px] text-zinc-500 flex flex-col h-20 overflow-y-auto">
-                  <div className="text-[8px] text-zinc-600 uppercase font-black border-b border-zinc-900 pb-1 mb-1">Лог режиссера</div>
-                  {selectedEpisode?.scenes.map((scene, idx) => {
-                    const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
-                    const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
-
-                    if (isDone) {
-                      return <p key={idx} className="text-emerald-500/80">✓ Кадр {idx + 1} отрисован</p>;
-                    }
-                    if (isCurrent) {
-                      return <p key={idx} className="text-purple-400 animate-pulse">⚡ Отрисовка кадра {idx + 1}...</p>;
-                    }
-                    return null;
-                  })}
-                </div>
-              </div>
-            )}
+            {currentScreen === "generating" && renderGeneratingLoader()}
 
             {/* ========================================================================= */}
             {/* SCREEN 4: MAIN PLAYER */}
@@ -1815,177 +1816,7 @@ export default function Home() {
           <main className="flex-grow flex h-full overflow-hidden bg-black/20">
             
             {currentScreen === "generating" ? (
-              <div className="flex-grow h-full bg-zinc-950 text-white flex flex-col p-6 overflow-y-auto animate-fade-in select-none">
-                {/* Header */}
-                <div className="w-full mb-6 flex flex-col lg:flex-row items-center justify-between gap-4 border-b border-zinc-900 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-purple-600/10 border border-purple-500/30 flex items-center justify-center animate-pulse">
-                      <span className="text-xl">🎬</span>
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-black tracking-tight text-white uppercase">ИИ-Режиссер: Прямой Эфир</h2>
-                      <p className="text-[10px] text-zinc-500 font-medium">Создание 12 сцен по 5 секунд</p>
-                    </div>
-                  </div>
-                  
-                  {/* Status Indicator */}
-                  <div className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800/80 px-4 py-2 rounded-2xl">
-                    <div className="h-2 w-2 rounded-full bg-purple-500 animate-ping"></div>
-                    <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-purple-400">
-                      Рендеринг: {selectedEpisode ? `${selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/12 готово` : "Инициализация..."}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Main Dashboard Grid */}
-                <div className="w-full flex-grow grid grid-cols-1 xl:grid-cols-3 gap-6 overflow-y-auto">
-                  {/* Left Column: Grid of 12 Scenes */}
-                  <div className="xl:col-span-2 flex flex-col gap-4">
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {selectedEpisode?.scenes.map((scene, idx) => {
-                        const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
-                        const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
-                        
-                        return (
-                          <div 
-                            key={idx}
-                            className={`relative rounded-2xl overflow-hidden border transition-all duration-300 ${
-                              isDone 
-                                ? "border-emerald-500/30 bg-zinc-900/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]" 
-                                : isCurrent 
-                                ? "border-purple-500/60 bg-purple-950/10 shadow-[0_0_20px_rgba(168,85,247,0.15)] animate-pulse" 
-                                : "border-zinc-900 bg-zinc-950"
-                            }`}
-                          >
-                            {/* Card Aspect Ratio Box (9:16) */}
-                            <div className="aspect-[9/16] relative w-full bg-zinc-950 flex flex-col justify-between p-3">
-                              {/* Scene Status Badge */}
-                              <div className="flex items-center justify-between z-10">
-                                <span className="bg-black/60 backdrop-blur-md text-[9px] font-mono font-extrabold px-2 py-0.5 rounded border border-zinc-800 text-zinc-400">
-                                  #{idx + 1}
-                                </span>
-                                {isDone ? (
-                                  <span className="bg-emerald-500/20 text-emerald-400 text-[8px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/30">
-                                    ✓ Готово
-                                  </span>
-                                ) : isCurrent ? (
-                                  <span className="bg-purple-500/20 text-purple-400 text-[8px] font-bold px-1.5 py-0.5 rounded border border-purple-500/30 animate-pulse">
-                                    ⚡ Режиссура
-                                  </span>
-                                ) : (
-                                  <span className="bg-zinc-900 text-zinc-600 text-[8px] font-bold px-1.5 py-0.5 rounded border border-zinc-800">
-                                    Ждет
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Live preview image or skeleton */}
-                              <div className="absolute inset-0 z-0">
-                                {isDone ? (
-                                  <img 
-                                    src={scene.imageUrl} 
-                                    alt={`Кадр ${idx + 1}`} 
-                                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full bg-gradient-to-b from-zinc-950 to-zinc-900/40 flex flex-col items-center justify-center p-4">
-                                    {isCurrent ? (
-                                      <div className="flex flex-col items-center gap-2 text-center">
-                                        <div className="h-6 w-6 rounded-full border-2 border-purple-500 border-t-transparent animate-spin"></div>
-                                        <span className="text-[8px] font-semibold text-purple-400 animate-pulse font-mono uppercase">Отрисовка...</span>
-                                      </div>
-                                    ) : (
-                                      <span className="text-[18px] opacity-10">🎨</span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Bottom Text/Subtitle preview */}
-                              <div className="z-10 bg-black/85 p-2 rounded-xl border border-zinc-900/50 backdrop-blur-[1px] mt-auto">
-                                <p className="text-[8px] leading-snug font-medium text-zinc-300 line-clamp-3">
-                                  {scene.text || "Ожидание сюжета..."}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Right Column: Console Logs & Global progress */}
-                  <div className="flex flex-col gap-4">
-                    {/* Global Progress Card */}
-                    <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-3xl p-5 flex flex-col gap-4">
-                      <h3 className="text-xs font-black tracking-wider uppercase text-zinc-400">Общий прогресс серии</h3>
-                      
-                      <div className="flex items-end justify-between">
-                        <span className="text-2xl font-black text-white tracking-tight">
-                          {selectedEpisode ? Math.round((selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100) : 0}%
-                        </span>
-                        <span className="text-[10px] text-zinc-500 font-mono font-bold">
-                          {selectedEpisode ? selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length : 0} / 12 кадров
-                        </span>
-                      </div>
-
-                      {/* Wide Glow Progress Bar */}
-                      <div className="w-full h-2.5 bg-zinc-950 border border-zinc-900 rounded-full overflow-hidden relative">
-                        <div 
-                          className="h-full bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-500 rounded-full shadow-[0_0_15px_#a855f7] transition-all duration-500"
-                          style={{ 
-                            width: `${selectedEpisode ? (selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100 : 0}%` 
-                          }}
-                        ></div>
-                      </div>
-
-                      {/* Dynamic Sub-message */}
-                      <div className="bg-zinc-950 border border-zinc-900 p-3.5 rounded-2xl text-[10px] text-zinc-400 leading-relaxed">
-                        <strong className="text-purple-400">Режим прямого эфира:</strong> Наш искусственный интеллект одновременно пишет сценарий, рисует аниме-кадры, озвучивает реплики персонажей и накладывает переходы. Не закрывайте эту страницу до окончания рендеринга.
-                      </div>
-                    </div>
-
-                    {/* AI Console Logs Panel */}
-                    <div className="flex-grow bg-black border border-zinc-900 rounded-3xl p-5 flex flex-col font-mono text-[10px] min-h-[220px]">
-                      <div className="flex items-center justify-between border-b border-zinc-900 pb-2 mb-3">
-                        <span className="text-zinc-500 uppercase tracking-widest font-bold">Логи ИИ-режиссера</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                          <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase">ONLINE</span>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto space-y-2 text-zinc-400 max-h-[300px] scrollbar-none">
-                        <p className="text-zinc-600">[Система] ⚡ Инициализация видеодвижка StoryReels...</p>
-                        <p className="text-zinc-600">[Система] ⚙️ Загрузка художественного стиля: 16-bit JRPG Pixel Art</p>
-                        
-                        {selectedEpisode?.scenes.map((scene, idx) => {
-                          const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
-                          const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
-                          
-                          if (isDone) {
-                            return (
-                              <div key={idx} className="space-y-0.5">
-                                <p className="text-emerald-400 font-bold">✓ Кадр {idx + 1}: Отрисован и сохранен.</p>
-                                <p className="text-zinc-500 pl-4">→ TTS озвучка синтезирована.</p>
-                              </div>
-                            );
-                          }
-                          if (isCurrent) {
-                            return (
-                              <div key={idx} className="space-y-0.5 animate-pulse">
-                                <p className="text-purple-400 font-bold">⚡ Кадр {idx + 1}: Генерация графики & озвучки...</p>
-                                <p className="text-zinc-600 pl-4">→ Промпт: {scene.imagePrompt ? scene.imagePrompt.substring(0, 40) + "..." : "подготовка..."}</p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              renderGeneratingLoader()
             ) : (
               <>
                 {/* Center Column: The Active Player */}
