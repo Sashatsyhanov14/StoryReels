@@ -621,35 +621,11 @@ export default function Home() {
     return foundPreset ? foundPreset.chips : ["Искать другой выход", "Идти на таран", "Сдаться"];
   };
 
-  // Screen click handles — center tap = play/pause, edges = skip
+  // Screen click handles — toggle play/pause (video-like behavior)
   const handlePlayerScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const leftEdge = rect.width * 0.25;
-    const rightEdge = rect.width * 0.75;
-
-    if (clickX < leftEdge) {
-      // Tap left edge — rewind to previous frame
-      if (activeSceneIndex > 0) {
-        setActiveSceneIndex((prev) => prev - 1);
-        setSceneProgress(0);
-        setShowChatController(false);
-      }
-    } else if (clickX > rightEdge) {
-      // Tap right edge — skip to next frame
-      if (activeSceneIndex < selectedEpisode!.scenes.length - 1) {
-        setActiveSceneIndex((prev) => prev + 1);
-        setSceneProgress(0);
-      } else {
-        setIsPlaying(false);
-        setShowChatController(true);
-        setSceneProgress(100);
-      }
-    } else {
-      // Tap center — toggle play/pause (video-like behavior)
-      if (showChatController) return;
-      setIsPlaying((prev) => !prev);
-    }
+    // Standard video behavior: tap anywhere on the video toggles play/pause
+    if (showChatController) return;
+    setIsPlaying((prev) => !prev);
   };
 
   return (
@@ -1140,31 +1116,8 @@ export default function Home() {
                 {/* Layer 2: Player UI overlays */}
                 <div className="relative z-10 w-full flex flex-col justify-between h-full pointer-events-none">
                   
-                  {/* Top Stories Progress Indicators */}
+                  {/* Top Stories Progress Indicators - Removed to feel like a video */}
                   <div className="w-full pt-16 pb-3 px-4 flex flex-col gap-3 bg-gradient-to-b from-black/90 via-black/40 to-transparent">
-                    {/* Progress bars row */}
-                    <div className="flex gap-1.5 w-full">
-                      {selectedEpisode.scenes.map((_, idx) => {
-                        const isWatched = idx < activeSceneIndex;
-                        const isCurrent = idx === activeSceneIndex;
-                        
-                        return (
-                          <div key={idx} className="h-[3px] flex-1 bg-white/15 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full transition-all ease-linear ${
-                                isWatched 
-                                  ? "w-full bg-purple-500 shadow-[0_0_8px_#a855f7]" 
-                                  : isCurrent 
-                                  ? "bg-gradient-to-r from-purple-500 to-pink-500 shadow-[0_0_10px_#d946ef]" 
-                                  : "w-0 bg-transparent"
-                              }`}
-                              style={isCurrent ? { width: `${sceneProgress}%` } : {}}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-
                     {/* Header Controls inside player */}
                     <div className="flex justify-between items-center pointer-events-auto">
                       {/* Sidebar Menu icon */}
@@ -1180,9 +1133,6 @@ export default function Home() {
                       <div className="bg-zinc-950/60 backdrop-blur-md border border-white/10 px-4 py-1.5 rounded-full flex flex-col items-center shadow-md">
                         <span className="text-[10px] font-mono tracking-widest text-white uppercase font-black">
                           {selectedEpisode.title}
-                        </span>
-                        <span className="text-[8px] text-zinc-400 font-mono tracking-wide mt-0.5">
-                          кадр {activeSceneIndex + 1} из {selectedEpisode.scenes.length}
                         </span>
                       </div>
 
@@ -1610,7 +1560,6 @@ export default function Home() {
                   {/* Header title */}
                   <div className="text-center w-full">
                     <h2 className="text-base font-black text-white uppercase tracking-wider mb-1">{selectedEpisode.title}</h2>
-                    <p className="text-[10px] text-zinc-500 font-mono">кадр {activeSceneIndex + 1} из {selectedEpisode.scenes.length}</p>
                   </div>
 
                   {/* Vertical Story Player Screen */}
