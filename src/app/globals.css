@@ -93,7 +93,7 @@ body {
 }
 
 .animate-fade-to-black-transition {
-  animation: fade-to-black-transition 0.3s ease-in-out forwards;
+  animation: fade-to-black-transition 0.5s ease-in-out forwards;
 }
 
 @keyframes glitch-cut-transition {
@@ -124,7 +124,7 @@ body {
 }
 
 .animate-glitch-cut-transition {
-  animation: glitch-cut-transition 0.3s steps(5) forwards;
+  animation: glitch-cut-transition 0.35s steps(5) forwards;
 }
 
 @keyframes slide-left {
@@ -165,7 +165,7 @@ body {
   100% { background-color: rgba(255, 255, 255, 0); }
 }
 .animate-white-flash-transition {
-  animation: white-flash-transition 0.3s ease-out forwards;
+  animation: white-flash-transition 0.45s ease-out forwards;
 }
 
 @keyframes cross-blur-transition {
@@ -174,7 +174,7 @@ body {
   100% { backdrop-filter: blur(0px); opacity: 0; }
 }
 .animate-cross-blur-transition {
-  animation: cross-blur-transition 0.4s ease-in-out forwards;
+  animation: cross-blur-transition 0.6s ease-in-out forwards;
 }
 
 @keyframes cross-fade-transition {
@@ -183,7 +183,7 @@ body {
   100% { opacity: 0; }
 }
 .animate-cross-fade-transition {
-  animation: cross-fade-transition 0.4s ease-in-out forwards;
+  animation: cross-fade-transition 0.6s ease-in-out forwards;
 }
 
 @keyframes zoom-out-slow {

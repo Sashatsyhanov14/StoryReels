@@ -227,7 +227,7 @@ export default function Home() {
     advanceToNextSceneRef.current = () => {
       if (!selectedEpisode || selectedEpisode.scenes.length === 0) return;
       const currentScene = selectedEpisode.scenes[activeSceneIndex];
-      const transitionType = currentScene?.transition || "fade-to-black";
+      const transitionType = currentScene?.transition || "cross-fade";
 
       setTransitionClass(transitionType);
 
@@ -235,17 +235,16 @@ export default function Home() {
         if (activeSceneIndex >= selectedEpisode.scenes.length - 1) {
           setIsPlaying(false);
           setShowChatController(true);
-          // Set progress bar of the last item to 100%
           setSceneProgress(100);
         } else {
           setActiveSceneIndex((prev) => prev + 1);
           setSceneProgress(0);
         }
-      }, 150);
+      }, 250);
 
       setTimeout(() => {
         setTransitionClass("");
-      }, 300);
+      }, 500);
     };
   }, [selectedEpisode, activeSceneIndex]);
 
@@ -622,19 +621,22 @@ export default function Home() {
     return foundPreset ? foundPreset.chips : ["Искать другой выход", "Идти на таран", "Сдаться"];
   };
 
-  // Screen click handles to skip previous/next stories in Instagram-style player
+  // Screen click handles — center tap = play/pause, edges = skip
   const handlePlayerScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const isLeftClick = clickX < rect.width * 0.33; // Left 33%
+    const leftEdge = rect.width * 0.25;
+    const rightEdge = rect.width * 0.75;
 
-    if (isLeftClick) {
+    if (clickX < leftEdge) {
+      // Tap left edge — rewind to previous frame
       if (activeSceneIndex > 0) {
         setActiveSceneIndex((prev) => prev - 1);
         setSceneProgress(0);
         setShowChatController(false);
       }
-    } else {
+    } else if (clickX > rightEdge) {
+      // Tap right edge — skip to next frame
       if (activeSceneIndex < selectedEpisode!.scenes.length - 1) {
         setActiveSceneIndex((prev) => prev + 1);
         setSceneProgress(0);
@@ -643,6 +645,10 @@ export default function Home() {
         setShowChatController(true);
         setSceneProgress(100);
       }
+    } else {
+      // Tap center — toggle play/pause (video-like behavior)
+      if (showChatController) return;
+      setIsPlaying((prev) => !prev);
     }
   };
 
