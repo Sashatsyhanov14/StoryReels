@@ -2,60 +2,304 @@ import React from "react";
 
 export const Icons = {
   Sparkles: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      {/* Two-tone custom organic sparkles */}
+      <path d="M12 3c.3 3.3 2.7 5.7 6 6-3.3.3-5.7 2.7-6 6-.3-3.3-2.7-5.7-6-6 3.3-.3 5.7-2.7 6-6Z" />
+      <path d="M19 14c.2 1.5 1.2 2.5 2.7 2.7-1.5.2-2.5 1.2-2.7 2.7-.2-1.5-1.2-2.5-2.7-2.7 1.5-.2 2.5-1.2 2.7-2.7Z" opacity="0.4" />
+    </svg>
   ),
   Coin: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/><path d="M8 12h8"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      {/* Double ring neon token icon */}
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5" opacity="0.4" />
+      <path d="M12 9v6" />
+      <path d="M10 12h4" />
+    </svg>
   ),
   Tv: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      {/* Premium curved borderless display */}
+      <rect width="20" height="13" x="2" y="4" rx="3" />
+      <path d="M12 17v4" />
+      <path d="M8 21h8" opacity="0.5" />
+    </svg>
   ),
   Clapperboard: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/><path d="m6.2 5.3 3.1 3.9"/><path d="m12.4 3.4 3.1 4"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      {/* Modern film clapperboard */}
+      <path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z" />
+      <path d="m3 9 3-4h15l-3 4H3Z" opacity="0.5" />
+      <path d="M6.5 5v4" opacity="0.5" />
+      <path d="M11.5 5v4" opacity="0.5" />
+      <path d="M16.5 5v4" opacity="0.5" />
+    </svg>
   ),
   Wand: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      {/* Creative magic wand */}
+      <path d="M19 5L5 19" />
+      <path d="M19 5l-2-2" />
+      <circle cx="9" cy="6" r="1" opacity="0.4" fill="currentColor" />
+      <circle cx="16" cy="13" r="1" opacity="0.4" fill="currentColor" />
+      <circle cx="6" cy="11" r="1.5" opacity="0.6" fill="currentColor" />
+      <circle cx="18" cy="8" r="1.5" opacity="0.6" fill="currentColor" />
+    </svg>
   ),
   XCircle: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9" opacity="0.3" />
+      <path d="m15 9-6 6" />
+      <path d="m9 9 6 6" />
+    </svg>
   ),
   Play: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="6 3 20 12 6 21 6 3"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      {/* Rounded play button */}
+      <path d="M7.5 5.5v13a1.5 1.5 0 0 0 2.25 1.3l10-6.5a1.5 1.5 0 0 0 0-2.6l-10-6.5A1.5 1.5 0 0 0 7.5 5.5Z" />
+    </svg>
   ),
   List: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <circle cx="3.5" cy="6" r="1.5" opacity="0.5" fill="currentColor" />
+      <circle cx="3.5" cy="12" r="1.5" opacity="0.5" fill="currentColor" />
+      <circle cx="3.5" cy="18" r="1.5" opacity="0.5" fill="currentColor" />
+    </svg>
   ),
   Loader: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 2v4"/><path d="m16.2 7.8 2.9-2.9"/><path d="M18 12h4"/><path d="m16.2 16.2 2.9 2.9"/><path d="M12 18v4"/><path d="m4.9 19.1 2.9-2.9"/><path d="M2 12h4"/><path d="m4.9 4.9 2.9 2.9"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      {/* Motion-simulating spinner segments */}
+      <path d="M12 3v3" />
+      <path d="m16.25 7.75 2.15-2.15" opacity="0.9" />
+      <path d="M18 12h3" opacity="0.8" />
+      <path d="m16.25 16.25 2.15 2.15" opacity="0.7" />
+      <path d="M12 18v3" opacity="0.6" />
+      <path d="m7.75 16.25-2.15 2.15" opacity="0.5" />
+      <path d="M3 12h3" opacity="0.4" />
+      <path d="m7.75 7.75-2.15-2.15" opacity="0.3" />
+    </svg>
   ),
   Pen: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M13.5 4.5l6 6M4 20h4L19.5 8.5a2.12 2.12 0 0 0-3-3L4 16v4Z" />
+    </svg>
   ),
   Palette: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10c0 1.5-.5 3-1.5 4s-2.5 1-3.5 1H16a2 2 0 0 0-2 2c0 .5-.2 1-.5 1.5-.5.5-1 1.5-1.5 1.5Z" />
+      <circle cx="7.5" cy="10.5" r="1.5" opacity="0.5" fill="currentColor" />
+      <circle cx="12" cy="7.5" r="1.5" opacity="0.5" fill="currentColor" />
+      <circle cx="16.5" cy="10.5" r="1.5" opacity="0.5" fill="currentColor" />
+    </svg>
   ),
   Mic: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <rect width="6" height="12" x="9" y="3" rx="3" />
+      <path d="M5 10v1a7 7 0 0 0 14 0v-1" opacity="0.7" />
+      <path d="M12 18v3" />
+      <path d="M8 21h8" opacity="0.5" />
+    </svg>
   ),
   Package: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M12 2L4 6.5v11L12 22l8-4.5v-11L12 2Z" />
+      <path d="M12 12V22" opacity="0.6" />
+      <path d="M12 12L4 6.5" opacity="0.6" />
+      <path d="M12 12l8-5.5" opacity="0.6" />
+    </svg>
   ),
   Search: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.35-4.35" opacity="0.6" />
+    </svg>
   ),
   ArrowLeft: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M19 12H5" />
+      <path d="m10 17-5-5 5-5" />
+    </svg>
   ),
   ArrowRight: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M5 12h14" />
+      <path d="m14 7 5 5-5 5" />
+    </svg>
   ),
   Vibrate: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m2 8 2 2-2 2 2 2-2 2"/><path d="m22 8-2 2 2 2-2 2 2 2"/><rect width="8" height="14" x="8" y="5" rx="1"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M6 8a4 4 0 0 1 8 0v8a4 4 0 0 1-8 0V8Z" />
+      <path d="M2 10h2M2 14h2" opacity="0.4" />
+      <path d="M20 10h2M20 14h2" opacity="0.4" />
+    </svg>
   ),
   Whirlpool: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10z"/><path d="M12 18c3.31 0 6-2.69 6-6s-2.69-6-6-6-6 2.69-6 6 2.69 6 6 6z"/><path d="M12 14c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9" opacity="0.3" />
+      <path d="M12 8a4 4 0 1 1-4 4" />
+      <path d="M12 6a6 6 0 1 0 6 6" opacity="0.6" />
+    </svg>
   ),
   Hourglass: (props: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>
+    <svg 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth={props.strokeWidth || "1.75"} 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      {...props}
+    >
+      <path d="M6 2h12M6 22h12" />
+      <path d="M6 2v4a4 4 0 0 0 2 3.46L12 12l4-2.54A4 4 0 0 0 18 6V2" />
+      <path d="M6 22v-4a4 4 0 0 1 2-3.46L12 12l4 2.54a4 4 0 0 1 2 3.46v4" opacity="0.5" />
+    </svg>
   )
 };
