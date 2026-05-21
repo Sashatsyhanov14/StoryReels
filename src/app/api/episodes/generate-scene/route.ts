@@ -80,6 +80,13 @@ async function generateImage(prompt: string): Promise<string> {
     return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
   }
 
+  // Force JRPG 16-bit pixel art style
+  const styleTrigger = "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, vibrant game colors";
+  let finalPrompt = prompt;
+  if (!finalPrompt.toLowerCase().includes("pixel art") && !finalPrompt.toLowerCase().includes("jrpg")) {
+    finalPrompt = `${prompt}, ${styleTrigger}`;
+  }
+
   let lastError: unknown = null;
   for (let i = 0; i < 3; i++) {
     try {
@@ -91,7 +98,7 @@ async function generateImage(prompt: string): Promise<string> {
           'Connection': 'close'
         },
         body: JSON.stringify({
-          prompt,
+          prompt: finalPrompt,
           aspect_ratio: '9:16'
         })
       });

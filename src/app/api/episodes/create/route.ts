@@ -38,8 +38,8 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
           role: 'system',
           content: `Ты — режиссер и сценарист вирусных кинематографичных Reels/TikTok видео (в стиле крутых эдитов из CapCut). Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал, который ощущается как ОДНО ЦЕЛЬНОЕ непрерывное видео из 12 кадров.
 
-Стиль: 16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, fantasy or sci-fi depending on the prompt.
-Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне. Эти кадры будут склеены в одно видео, поэтому визуальный стиль должен быть максимально консистентным.
+Стиль: СТРОГО 16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art. Все сцены должны выглядеть как кадры из одной ретро-игры на Super Nintendo.
+Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне. Эти кадры будут склеены в одно видео, поэтому визуальный стиль должен быть максимально консистентным. Каждый image_prompt ОБЯЗАТЕЛЬНО должен начинаться со слов: "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style".
 
 Правила драматургии и озвучки (CapCut style):
 Кадры 1-3: Мощный хук (hook), экспозиция, завязка. Закадровый голос должен интриговать с первой секунды.
@@ -55,7 +55,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
   {
     "frame": 1,
     "scene_text": "Текст сценария: краткое описание того, что происходит в этой сцене",
-    "image_prompt": "Detailed description of the scene for the image generator in English, maintaining the main character's design and 16-bit pixel art retro JRPG style",
+    "image_prompt": "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, [English description of the scene for the image generator, maintaining the main character's design]",
     "voice_text": "Глубокий непрерывный закадровый текст на русском для TTS. Плотный сюжет, фраза может начаться здесь...",
     "camera_effect": "camera-shake",
     "transition": "cross-fade"
@@ -63,7 +63,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
   {
     "frame": 2,
     "scene_text": "Продолжение действия, описание визуальной обстановки для сценария",
-    "image_prompt": "...",
+    "image_prompt": "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, [English description of the next scene]",
     "voice_text": "...и логично продолжиться в следующем кадре, создавая эффект непрерывного аудио-потока.",
     "camera_effect": "zoom-in-fast",
     "transition": "glitch-cut"

@@ -380,13 +380,12 @@ export default function Home() {
       setSelectedEpisode(tempEpisode);
       setActiveSceneIndex(0);
       setShowChatController(false);
-      setIsPlaying(true);
+      setIsPlaying(false);
 
-      // 2. Switch directly to player (bypassing loader & paywall views)
-      setCurrentScreen("player");
+      // 2. Switch to generating screen (live stream generation)
+      setCurrentScreen("generating");
 
-      // 3. Generate scenes in the background immediately
-      // Do not await this, so it runs asynchronously in the background
+      // 3. Generate scenes immediately
       resumeGeneration(episodeId, userId, scenes);
 
     } catch (err) {
@@ -502,14 +501,13 @@ export default function Home() {
         const finishedEp = episodesList.find((ep) => ep.id === episodeId);
         if (finishedEp) {
           setSelectedEpisode(finishedEp);
-          // Only show chat choices/stop playing once generation fully finished
-          if (selectedEpisode?.id === episodeId) {
-            setShowChatController(true);
-            setIsPlaying(false);
-          }
         }
       }
       setIsGenerating(false);
+      setCurrentScreen("player");
+      setIsPlaying(true);
+      setShowChatController(false);
+      setActiveSceneIndex(0);
     } catch (err) {
       console.error("Batch rendering failed:", err);
       
@@ -924,9 +922,9 @@ export default function Home() {
             )}
 
             {/* ========================================================================= */}
-            {/* SCREEN 3: GENERATION LOADER & MICRO-PAYWALL */}
+            {/* SCREEN 3: MICRO-PAYWALL */}
             {/* ========================================================================= */}
-            {(currentScreen === "generating" || currentScreen === "paywall") && (
+            {currentScreen === "paywall" && (
               <div className="h-full w-full relative overflow-hidden bg-black flex flex-col items-center justify-center p-6 animate-fade-in">
                 
                 {/* Generation loader text & bar */}
@@ -952,55 +950,53 @@ export default function Home() {
                 </div>
 
                 {/* State 2 Paywall Modal Overlay */}
-                {currentScreen === "paywall" && (
-                  <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-20 flex items-center justify-center p-4">
-                    <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900/80 rounded-3xl p-5.5 text-center shadow-[0_10px_50px_rgba(168,85,247,0.25)] max-w-[90%] z-30 animate-scale-in">
-                      
-                      {/* Discount Badge */}
-                      <span className="inline-block bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-black tracking-widest px-2.5 py-1 rounded-md uppercase mb-4 shadow-[0_0_15px_rgba(239,68,68,0.4)]">
-                        СКИДКА 85%
-                      </span>
+                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-20 flex items-center justify-center p-4">
+                  <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900/80 rounded-3xl p-5.5 text-center shadow-[0_10px_50px_rgba(168,85,247,0.25)] max-w-[90%] z-30 animate-scale-in">
+                    
+                    {/* Discount Badge */}
+                    <span className="inline-block bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-black tracking-widest px-2.5 py-1 rounded-md uppercase mb-4 shadow-[0_0_15px_rgba(239,68,68,0.4)]">
+                      СКИДКА 85%
+                    </span>
 
-                      {/* Paywall Copy */}
-                      <h4 className="text-sm font-extrabold text-white tracking-tight mb-2 leading-snug">
-                        Рендеринг готов к запуску.
-                      </h4>
-                      <p className="text-[10px] text-zinc-400 leading-relaxed mb-6">
-                        Активируйте генерацию пилотной серии прямо сейчас всего за <strong className="text-purple-400">19 ₽</strong>. Включает 15 полноценных кадров ИИ и озвучку.
-                      </p>
+                    {/* Paywall Copy */}
+                    <h4 className="text-sm font-extrabold text-white tracking-tight mb-2 leading-snug">
+                      Рендеринг готов к запуску.
+                    </h4>
+                    <p className="text-[10px] text-zinc-400 leading-relaxed mb-6">
+                      Активируйте генерацию пилотной серии прямо сейчас всего за <strong className="text-purple-400">19 ₽</strong>. Включает 15 полноценных кадров ИИ и озвучку.
+                    </p>
 
-                      {/* Payment buttons container */}
-                      <div className="flex flex-col gap-2.5">
-                        {/* Shimmer pay button */}
-                        <button 
-                          onClick={handlePayActivation}
-                          className="w-full relative overflow-hidden py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-[size:200%_auto] animate-shimmer shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer"
-                        >
-                          Оплатить 19 ₽
-                        </button>
+                    {/* Payment buttons container */}
+                    <div className="flex flex-col gap-2.5">
+                      {/* Shimmer pay button */}
+                      <button 
+                        onClick={handlePayActivation}
+                        className="w-full relative overflow-hidden py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-[size:200%_auto] animate-shimmer shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer"
+                      >
+                        Оплатить 19 ₽
+                      </button>
 
-                        {/* Sandbox bypass for developers */}
-                        <button 
-                          onClick={() => {
-                            setSimulationProgress(100);
-                            setCurrentScreen("generating");
-                            setLoaderText("Запуск демо-рендеринга...");
-                            setTimeout(async () => {
-                              if (createdEpisodeId) {
-                                await resumeGeneration(createdEpisodeId, userId, pendingScenes);
-                              }
-                              setCurrentScreen("player");
-                              setIsGenerating(false);
-                            }, 1200);
-                          }}
-                          className="text-zinc-500 hover:text-zinc-400 text-[9px] tracking-wide font-bold uppercase transition-colors py-1 cursor-pointer"
-                        >
-                          [ Демо-режим (0 токенов) ]
-                        </button>
-                      </div>
+                      {/* Sandbox bypass for developers */}
+                      <button 
+                        onClick={() => {
+                          setSimulationProgress(100);
+                          setCurrentScreen("generating");
+                          setLoaderText("Запуск демо-рендеринга...");
+                          setTimeout(async () => {
+                            if (createdEpisodeId) {
+                              await resumeGeneration(createdEpisodeId, userId, pendingScenes);
+                            }
+                            setCurrentScreen("player");
+                            setIsGenerating(false);
+                          }, 1200);
+                        }}
+                        className="text-zinc-500 hover:text-zinc-400 text-[9px] tracking-wide font-bold uppercase transition-colors py-1 cursor-pointer"
+                      >
+                        [ Демо-режим (0 токенов) ]
+                      </button>
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* Secure Checkout Overlay during simulation */}
                 {showDemoPayPrompt && (
@@ -1013,7 +1009,125 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
 
+            {/* ========================================================================= */}
+            {/* SCREEN 4: LIVE RENDER GENERATOR (MOBILE) */}
+            {/* ========================================================================= */}
+            {currentScreen === "generating" && (
+              <div className="h-full w-full bg-zinc-950 text-white flex flex-col p-4 overflow-y-auto animate-fade-in select-none">
+                {/* Mobile Header */}
+                <div className="w-full mb-4 pb-3 border-b border-zinc-900 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🎬</span>
+                    <div>
+                      <h2 className="text-xs font-black uppercase text-white tracking-wider">ИИ-Режиссер</h2>
+                      <p className="text-[9px] text-zinc-500">Генерация серии в прямом эфире</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-zinc-900/60 px-3 py-1.5 rounded-full border border-zinc-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+                    <span className="text-[9px] font-mono text-purple-400 font-bold uppercase">
+                      {selectedEpisode ? `${selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/12 готово` : "Сценарий..."}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress bar info */}
+                <div className="bg-zinc-900/30 border border-zinc-900 rounded-2xl p-3.5 mb-4 flex flex-col gap-2">
+                  <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400">
+                    <span>Рендеринг JRPG кадров...</span>
+                    <span>{selectedEpisode ? Math.round((selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100) : 0}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-zinc-950 border border-zinc-900 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-full shadow-[0_0_10px_#a855f7] transition-all duration-500"
+                      style={{ 
+                        width: `${selectedEpisode ? (selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100 : 0}%` 
+                      }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Scene Grid (2 columns on mobile) */}
+                <div className="grid grid-cols-2 gap-2 flex-grow overflow-y-auto max-h-[60vh] mb-4 pb-4">
+                  {selectedEpisode?.scenes.map((scene, idx) => {
+                    const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
+                    const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
+
+                    return (
+                      <div 
+                        key={idx}
+                        className={`relative rounded-xl overflow-hidden border transition-all duration-300 ${
+                          isDone 
+                            ? "border-emerald-500/20 bg-zinc-900/20" 
+                            : isCurrent 
+                            ? "border-purple-500/50 bg-purple-950/5 animate-pulse" 
+                            : "border-zinc-900 bg-zinc-950"
+                        }`}
+                      >
+                        <div className="aspect-[9/16] relative w-full flex flex-col justify-between p-2">
+                          {/* Top row */}
+                          <div className="flex items-center justify-between z-10">
+                            <span className="bg-black/60 backdrop-blur-md text-[8px] font-mono font-extrabold px-1.5 py-0.5 rounded text-zinc-400">
+                              #{idx + 1}
+                            </span>
+                            {isDone ? (
+                              <span className="text-[8px] text-emerald-400 font-bold bg-emerald-500/10 px-1 py-0.5 rounded">✓</span>
+                            ) : isCurrent ? (
+                              <span className="text-[8px] text-purple-400 font-bold bg-purple-500/10 px-1 py-0.5 rounded animate-pulse">⚡</span>
+                            ) : null}
+                          </div>
+
+                          {/* Image preview */}
+                          <div className="absolute inset-0 z-0">
+                            {isDone ? (
+                              <img 
+                                src={scene.imageUrl} 
+                                alt={`Кадр ${idx + 1}`} 
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-b from-zinc-950 to-zinc-900/20 flex flex-col items-center justify-center">
+                                {isCurrent ? (
+                                  <div className="h-4 w-4 border border-purple-500 border-t-transparent animate-spin rounded-full"></div>
+                                ) : (
+                                  <span className="text-zinc-800 text-[16px]">🎨</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Bottom description */}
+                          <div className="z-10 bg-black/75 p-1.5 rounded-lg border border-zinc-900/50 backdrop-blur-[1px] mt-auto">
+                            <p className="text-[8px] leading-snug font-medium text-zinc-400 line-clamp-2">
+                              {scene.text || "Сценарий..."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Console footer logs */}
+                <div className="bg-black border border-zinc-900 rounded-2xl p-3 font-mono text-[9px] text-zinc-500 flex flex-col h-20 overflow-y-auto">
+                  <div className="text-[8px] text-zinc-600 uppercase font-black border-b border-zinc-900 pb-1 mb-1">Лог режиссера</div>
+                  {selectedEpisode?.scenes.map((scene, idx) => {
+                    const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
+                    const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
+
+                    if (isDone) {
+                      return <p key={idx} className="text-emerald-500/80">✓ Кадр {idx + 1} отрисован</p>;
+                    }
+                    if (isCurrent) {
+                      return <p key={idx} className="text-purple-400 animate-pulse">⚡ Отрисовка кадра {idx + 1}...</p>;
+                    }
+                    return null;
+                  })}
+                </div>
               </div>
             )}
 
@@ -1700,282 +1814,402 @@ export default function Home() {
           {/* Main Center Area */}
           <main className="flex-grow flex h-full overflow-hidden bg-black/20">
             
-            {/* Center Column: The Active Player */}
-            <div className="flex-1 flex flex-col items-center justify-center p-6 border-r border-zinc-900 h-full overflow-y-auto scrollbar-none">
-              {selectedEpisode ? (
-                <div className="flex flex-col items-center gap-6 w-full max-w-[480px]">
+            {currentScreen === "generating" ? (
+              <div className="flex-grow h-full bg-zinc-950 text-white flex flex-col p-6 overflow-y-auto animate-fade-in select-none">
+                {/* Header */}
+                <div className="w-full mb-6 flex flex-col lg:flex-row items-center justify-between gap-4 border-b border-zinc-900 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-purple-600/10 border border-purple-500/30 flex items-center justify-center animate-pulse">
+                      <span className="text-xl">🎬</span>
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-black tracking-tight text-white uppercase">ИИ-Режиссер: Прямой Эфир</h2>
+                      <p className="text-[10px] text-zinc-500 font-medium">Создание 12 сцен по 5 секунд</p>
+                    </div>
+                  </div>
                   
-                  {/* Header title */}
-                  <div className="text-center w-full">
-                    <h2 className="text-base font-black text-white uppercase tracking-wider mb-1">{selectedEpisode.title}</h2>
+                  {/* Status Indicator */}
+                  <div className="flex items-center gap-3 bg-zinc-900/60 border border-zinc-800/80 px-4 py-2 rounded-2xl">
+                    <div className="h-2 w-2 rounded-full bg-purple-500 animate-ping"></div>
+                    <span className="text-[10px] font-mono font-bold tracking-wider uppercase text-purple-400">
+                      Рендеринг: {selectedEpisode ? `${selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/12 готово` : "Инициализация..."}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Main Dashboard Grid */}
+                <div className="w-full flex-grow grid grid-cols-1 xl:grid-cols-3 gap-6 overflow-y-auto">
+                  {/* Left Column: Grid of 12 Scenes */}
+                  <div className="xl:col-span-2 flex flex-col gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {selectedEpisode?.scenes.map((scene, idx) => {
+                        const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
+                        const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
+                        
+                        return (
+                          <div 
+                            key={idx}
+                            className={`relative rounded-2xl overflow-hidden border transition-all duration-300 ${
+                              isDone 
+                                ? "border-emerald-500/30 bg-zinc-900/30 shadow-[0_0_15px_rgba(16,185,129,0.05)]" 
+                                : isCurrent 
+                                ? "border-purple-500/60 bg-purple-950/10 shadow-[0_0_20px_rgba(168,85,247,0.15)] animate-pulse" 
+                                : "border-zinc-900 bg-zinc-950"
+                            }`}
+                          >
+                            {/* Card Aspect Ratio Box (9:16) */}
+                            <div className="aspect-[9/16] relative w-full bg-zinc-950 flex flex-col justify-between p-3">
+                              {/* Scene Status Badge */}
+                              <div className="flex items-center justify-between z-10">
+                                <span className="bg-black/60 backdrop-blur-md text-[9px] font-mono font-extrabold px-2 py-0.5 rounded border border-zinc-800 text-zinc-400">
+                                  #{idx + 1}
+                                </span>
+                                {isDone ? (
+                                  <span className="bg-emerald-500/20 text-emerald-400 text-[8px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/30">
+                                    ✓ Готово
+                                  </span>
+                                ) : isCurrent ? (
+                                  <span className="bg-purple-500/20 text-purple-400 text-[8px] font-bold px-1.5 py-0.5 rounded border border-purple-500/30 animate-pulse">
+                                    ⚡ Режиссура
+                                  </span>
+                                ) : (
+                                  <span className="bg-zinc-900 text-zinc-600 text-[8px] font-bold px-1.5 py-0.5 rounded border border-zinc-800">
+                                    Ждет
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Live preview image or skeleton */}
+                              <div className="absolute inset-0 z-0">
+                                {isDone ? (
+                                  <img 
+                                    src={scene.imageUrl} 
+                                    alt={`Кадр ${idx + 1}`} 
+                                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-b from-zinc-950 to-zinc-900/40 flex flex-col items-center justify-center p-4">
+                                    {isCurrent ? (
+                                      <div className="flex flex-col items-center gap-2 text-center">
+                                        <div className="h-6 w-6 rounded-full border-2 border-purple-500 border-t-transparent animate-spin"></div>
+                                        <span className="text-[8px] font-semibold text-purple-400 animate-pulse font-mono uppercase">Отрисовка...</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[18px] opacity-10">🎨</span>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Bottom Text/Subtitle preview */}
+                              <div className="z-10 bg-black/85 p-2 rounded-xl border border-zinc-900/50 backdrop-blur-[1px] mt-auto">
+                                <p className="text-[8px] leading-snug font-medium text-zinc-300 line-clamp-3">
+                                  {scene.text || "Ожидание сюжета..."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
-                  {/* Vertical Story Player Screen */}
-                  <div className="relative w-full aspect-[9/16] max-h-[580px] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.8)]">
-                    {/* Media Content */}
-                    <div className="w-full h-full relative" onClick={handlePlayerScreenClick}>
-                      {isDesktop && (
-                        <EpisodePlayer
-                          scenes={selectedEpisode.scenes}
-                          isPlaying={isPlaying}
-                          onSceneChange={setActiveSceneIndex}
-                          onProgressChange={setSceneProgress}
-                          onPlaybackEnded={() => {
-                            setIsPlaying(false);
-                            setShowChatController(true);
-                            setSceneProgress(100);
-                          }}
-                        />
-                      )}
-
-                      {/* Live AI Render Status Badge */}
-                      {(selectedEpisode.status === "pending" || isGenerating) && (
-                        <div className="absolute top-4 right-4 z-40 bg-zinc-950/80 backdrop-blur-md border border-purple-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg shadow-purple-500/10 pointer-events-auto">
-                          <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                          </span>
-                          <span className="text-[9px] font-bold text-purple-300 uppercase tracking-widest font-mono">
-                            ИИ РЕНДЕР: {selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/{selectedEpisode.scenes.length}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Progress bars row at the top (Removed/Hidden to feel like a video per user request) */}
-                      {/* <div className="absolute top-4 inset-x-3 z-30 flex gap-1 pointer-events-none">
-                        {selectedEpisode.scenes.map((_, idx) => {
-                          const isWatched = idx < activeSceneIndex;
-                          const isCurrent = idx === activeSceneIndex;
-                          return (
-                            <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full transition-all ease-linear ${
-                                  isWatched ? "w-full bg-white" : isCurrent ? "bg-white" : "w-0 bg-transparent"
-                                }`}
-                                style={isCurrent ? { width: `${sceneProgress}%` } : {}}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div> */}
-
-                      {/* Play/Pause Overlay indicator */}
-                      {!isPlaying && !showChatController && (
-                        <div className="absolute inset-0 bg-black/20 z-20 flex items-center justify-center pointer-events-none">
-                          <div className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
-                            <Icons.Play className="w-5 h-5 fill-white text-white translate-x-0.5" />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Interactive overlay buttons inside player */}
-                      <div className="absolute bottom-10 inset-x-4 z-30 flex justify-center items-center pointer-events-none w-full">
-                        {/* CapCut-style Animated Subtitles (Hidden for now) */}
-                        {/* {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
-                          <div className="w-full flex justify-center text-center pointer-events-none">
-                            <AnimatedSubtitles
-                              text={selectedEpisode.scenes[activeSceneIndex].text}
-                              sceneKey={activeSceneIndex}
-                              isPlaying={isPlaying}
-                            />
-                          </div>
-                        )} */}
+                  {/* Right Column: Console Logs & Global progress */}
+                  <div className="flex flex-col gap-4">
+                    {/* Global Progress Card */}
+                    <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-3xl p-5 flex flex-col gap-4">
+                      <h3 className="text-xs font-black tracking-wider uppercase text-zinc-400">Общий прогресс серии</h3>
+                      
+                      <div className="flex items-end justify-between">
+                        <span className="text-2xl font-black text-white tracking-tight">
+                          {selectedEpisode ? Math.round((selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100) : 0}%
+                        </span>
+                        <span className="text-[10px] text-zinc-500 font-mono font-bold">
+                          {selectedEpisode ? selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length : 0} / 12 кадров
+                        </span>
                       </div>
 
-                      {/* Continuous Video Timeline Progress */}
-                      {!showChatController && selectedEpisode.scenes.length > 0 && (
-                        <div className="absolute bottom-0 inset-x-0 h-1.5 bg-zinc-900/80 z-40 pointer-events-none">
-                          <div 
-                            className="h-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)] transition-all ease-linear"
-                            style={{ 
-                              width: `${((activeSceneIndex + (sceneProgress / 100)) / selectedEpisode.scenes.length) * 100}%` 
-                            }}
-                          />
-                        </div>
-                      )}
+                      {/* Wide Glow Progress Bar */}
+                      <div className="w-full h-2.5 bg-zinc-950 border border-zinc-900 rounded-full overflow-hidden relative">
+                        <div 
+                          className="h-full bg-gradient-to-r from-purple-600 via-pink-600 to-cyan-500 rounded-full shadow-[0_0_15px_#a855f7] transition-all duration-500"
+                          style={{ 
+                            width: `${selectedEpisode ? (selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length / 12) * 100 : 0}%` 
+                          }}
+                        ></div>
+                      </div>
+
+                      {/* Dynamic Sub-message */}
+                      <div className="bg-zinc-950 border border-zinc-900 p-3.5 rounded-2xl text-[10px] text-zinc-400 leading-relaxed">
+                        <strong className="text-purple-400">Режим прямого эфира:</strong> Наш искусственный интеллект одновременно пишет сценарий, рисует аниме-кадры, озвучивает реплики персонажей и накладывает переходы. Не закрывайте эту страницу до окончания рендеринга.
+                      </div>
                     </div>
 
-                    {/* Active Simulation Progress Overlay */}
-                    {currentScreen === "generating" && (
-                      <div className="absolute inset-0 bg-black/95 z-40 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                        <div className="relative mb-4">
-                          <div className="h-16 w-16 rounded-full border-[3px] border-purple-500/10 border-t-purple-500 animate-spin"></div>
-                          <div className="absolute inset-0 flex items-center justify-center text-xl animate-pulse">🧠</div>
+                    {/* AI Console Logs Panel */}
+                    <div className="flex-grow bg-black border border-zinc-900 rounded-3xl p-5 flex flex-col font-mono text-[10px] min-h-[220px]">
+                      <div className="flex items-center justify-between border-b border-zinc-900 pb-2 mb-3">
+                        <span className="text-zinc-500 uppercase tracking-widest font-bold">Логи ИИ-режиссера</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                          <span className="text-[9px] text-zinc-500 font-bold font-mono uppercase">ONLINE</span>
                         </div>
-                        <h3 className="text-xs font-bold text-white tracking-wider animate-pulse duration-1000 mb-2">
-                          {genStep === "idle" ? loaderText : 
-                           genStep === "script" ? "Генерация сюжета..." :
-                           genStep === "keyframes" ? "Рендеринг кадров..." :
-                           genStep === "voiceover" ? "Синтез озвучки..." : "Сборка серии..."}
-                        </h3>
-                        <div className="w-36 h-1 bg-zinc-900 rounded-full overflow-hidden relative shadow-[0_0_10px_rgba(0,0,0,0.5)] mb-1">
-                          <div 
-                            className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 rounded-full shadow-[0_0_15px_#a855f7] transition-all duration-300"
-                            style={{ width: `${isGenerating ? generationProgress : simulationProgress}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-[9px] font-mono text-zinc-500 font-bold">{isGenerating ? generationProgress : simulationProgress}%</span>
                       </div>
-                    )}
 
-                    {/* Active Paywall Modal Overlay */}
-                    {currentScreen === "paywall" && (
-                      <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-45 flex items-center justify-center p-4">
-                        <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900/80 rounded-3xl p-5 text-center shadow-2xl max-w-[90%] animate-scale-in">
-                          <h4 className="text-xs font-black text-white uppercase tracking-wider mb-2">Создание пилотной серии</h4>
-                          <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">
-                            Для запуска ИИ-генерации (сценарий, Flux-кадры, озвучка) требуется оплатить 19 ₽.
-                          </p>
+                      <div className="flex-1 overflow-y-auto space-y-2 text-zinc-400 max-h-[300px] scrollbar-none">
+                        <p className="text-zinc-600">[Система] ⚡ Инициализация видеодвижка StoryReels...</p>
+                        <p className="text-zinc-600">[Система] ⚙️ Загрузка художественного стиля: 16-bit JRPG Pixel Art</p>
+                        
+                        {selectedEpisode?.scenes.map((scene, idx) => {
+                          const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
+                          const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
                           
-                          <div className="flex flex-col gap-2">
-                            <button 
-                              onClick={handlePayActivation}
-                              className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-[size:200%_auto] animate-shimmer shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:scale-[1.01] transition-all cursor-pointer"
-                            >
-                              Оплатить 19 ₽
-                            </button>
-                            
-                            {/* Dev sandbox bypass */}
-                            <button 
-                              onClick={() => {
-                                setSimulationProgress(100);
-                                setCurrentScreen("player");
-                                setIsGenerating(true);
-                                setLoaderText("Запуск демо-рендеринга...");
-                                setTimeout(async () => {
-                                  if (createdEpisodeId) {
-                                    await resumeGeneration(createdEpisodeId, userId, pendingScenes);
-                                  }
-                                  setIsGenerating(false);
-                                }, 1200);
-                              }}
-                              className="text-zinc-500 hover:text-zinc-400 text-[8px] tracking-wide font-bold uppercase transition-colors py-1 cursor-pointer"
-                            >
-                              [ Демо-режим ]
-                            </button>
-                          </div>
-                        </div>
+                          if (isDone) {
+                            return (
+                              <div key={idx} className="space-y-0.5">
+                                <p className="text-emerald-400 font-bold">✓ Кадр {idx + 1}: Отрисован и сохранен.</p>
+                                <p className="text-zinc-500 pl-4">→ TTS озвучка синтезирована.</p>
+                              </div>
+                            );
+                          }
+                          if (isCurrent) {
+                            return (
+                              <div key={idx} className="space-y-0.5 animate-pulse">
+                                <p className="text-purple-400 font-bold">⚡ Кадр {idx + 1}: Генерация графики & озвучки...</p>
+                                <p className="text-zinc-600 pl-4">→ Промпт: {scene.imagePrompt ? scene.imagePrompt.substring(0, 40) + "..." : "подготовка..."}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
                       </div>
-                    )}
-
+                    </div>
                   </div>
-
-                  {/* Subtitle bottom banner if not in play */}
-                {showChatController && (
-                  <div className="w-full bg-purple-950/15 border border-purple-500/20 backdrop-blur-md rounded-2xl p-4 text-center animate-scale-in">
-                    <p className="text-purple-300 text-xs font-semibold">
-                      Сцена завершилась. Выберите продолжение истории на панели справа.
-                    </p>
-                  </div>
-                )}
-
+                </div>
               </div>
             ) : (
-              /* Empty State view */
-              <div className="flex flex-col items-center justify-center max-w-sm text-center gap-6 p-6 bg-zinc-950/20 border border-zinc-900 rounded-3xl backdrop-blur-xl">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center border border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.35)]">
-                  <Icons.Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Создайте свой первый сериал</h3>
-                  <p className="text-[10px] text-zinc-500 leading-relaxed">
-                    Введите любую креативную идею или выберите готовый пресет на панели справа, чтобы начать генерацию.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+              <>
+                {/* Center Column: The Active Player */}
+                <div className="flex-1 flex flex-col items-center justify-center p-6 border-r border-zinc-900 h-full overflow-y-auto scrollbar-none">
+                  {selectedEpisode ? (
+                    <div className="flex flex-col items-center gap-6 w-full max-w-[480px]">
+                      
+                      {/* Header title */}
+                      <div className="text-center w-full">
+                        <h2 className="text-base font-black text-white uppercase tracking-wider mb-1">{selectedEpisode.title}</h2>
+                      </div>
 
-          {/* Right Column: Generation workspace */}
-          <div className="w-96 p-6 flex flex-col gap-6 overflow-y-auto h-full scrollbar-none border-l border-zinc-900 bg-zinc-950/10">
-            
-            {/* Box 1: Generation Control */}
-            <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
-              <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
-                <Icons.Sparkles className="w-4 h-4 text-purple-400" />
-                <h3 className="text-xs font-black text-white uppercase tracking-wider">Генератор серии</h3>
-              </div>
+                      {/* Vertical Story Player Screen */}
+                      <div className="relative w-full aspect-[9/16] max-h-[580px] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.8)]">
+                        {/* Media Content */}
+                        <div className="w-full h-full relative" onClick={handlePlayerScreenClick}>
+                          {isDesktop && (
+                            <EpisodePlayer
+                              scenes={selectedEpisode.scenes}
+                              isPlaying={isPlaying}
+                              onSceneChange={setActiveSceneIndex}
+                              onProgressChange={setSceneProgress}
+                              onPlaybackEnded={() => {
+                                setIsPlaying(false);
+                                setShowChatController(true);
+                                setSceneProgress(100);
+                              }}
+                            />
+                          )}
 
-              {/* Text Area */}
-              <div className="flex flex-col gap-2.5">
-                <label className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
-                  Что произойдет дальше?
-                </label>
-                <textarea
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="Опишите действие, например: Герой выбивает ржавую дверь плечом и прыгает в темную вентиляционную шахту..."
-                  className="w-full h-28 bg-black border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 resize-none transition-colors"
-                />
-              </div>
+                          {/* Live AI Render Status Badge */}
+                          {(selectedEpisode.status === "pending" || isGenerating) && (
+                            <div className="absolute top-4 right-4 z-40 bg-zinc-950/80 backdrop-blur-md border border-purple-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg shadow-purple-500/10 pointer-events-auto">
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                              </span>
+                              <span className="text-[9px] font-bold text-purple-300 uppercase tracking-widest font-mono">
+                                ИИ РЕНДЕР: {selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/{selectedEpisode.scenes.length}
+                              </span>
+                            </div>
+                          )}
 
-              {/* Active Choices from parsing if ready */}
-              {selectedEpisode && showChatController && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-[8px] text-purple-400 font-mono uppercase tracking-widest">
-                    Варианты на выбор:
-                  </span>
-                  <div className="flex flex-col gap-1.5">
-                    {getActiveChips().map((chipText, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setPrompt(chipText);
-                        }}
-                        className="text-left bg-purple-950/15 hover:bg-purple-950/30 border border-purple-500/20 text-purple-300 text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer hover:border-purple-500/40"
-                      >
-                        {chipText}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+                          {/* Play/Pause Overlay indicator */}
+                          {!isPlaying && !showChatController && (
+                            <div className="absolute inset-0 bg-black/20 z-20 flex items-center justify-center pointer-events-none">
+                              <div className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+                                <Icons.Play className="w-5 h-5 fill-white text-white translate-x-0.5" />
+                              </div>
+                            </div>
+                          )}
 
-              {/* Generate button */}
-              <button
-                onClick={() => handleStartGeneration()}
-                disabled={isGenerating}
-                className="w-full relative overflow-hidden py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-white select-none active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.15)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
-                    Создание...
-                  </>
-                ) : (
-                  <>
-                    <Icons.Sparkles className="w-3.5 h-3.5" />
-                    Запустить рендер
-                  </>
-                )}
-              </button>
-            </div>
+                          {/* Continuous Video Timeline Progress */}
+                          {!showChatController && selectedEpisode.scenes.length > 0 && (
+                            <div className="absolute bottom-0 inset-x-0 h-1.5 bg-zinc-900/80 z-40 pointer-events-none">
+                              <div 
+                                className="h-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)] transition-all ease-linear"
+                                style={{ 
+                                  width: `${((activeSceneIndex + (sceneProgress / 100)) / selectedEpisode.scenes.length) * 100}%` 
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
 
-            {/* Box 2: Preset Inspirations */}
-            <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
-              <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
-                Готовые идеи и сюжеты
-              </h4>
-              <div className="grid grid-cols-1 gap-2.5">
-                {PRESET_PROMPTS.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setPrompt(item.prompt);
-                    }}
-                    className="flex items-center gap-3 text-left p-2.5 rounded-xl bg-zinc-900/30 border border-zinc-900 hover:bg-zinc-900/60 hover:border-zinc-800 transition-all group"
-                  >
-                    <span className="text-lg group-hover:scale-110 transition-transform">{item.emoji}</span>
-                    <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-white">{item.title}</span>
-                      <span className="text-[8px] text-zinc-500 font-mono mt-0.5 truncate max-w-[210px]">{item.prompt}</span>
+                        {/* Active Paywall Modal Overlay */}
+                        {currentScreen === "paywall" && (
+                          <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-45 flex items-center justify-center p-4">
+                            <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900/80 rounded-3xl p-5 text-center shadow-2xl max-w-[90%] animate-scale-in">
+                              <h4 className="text-xs font-black text-white uppercase tracking-wider mb-2">Создание пилотной серии</h4>
+                              <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">
+                                Для запуска ИИ-генерации (сценарий, Flux-кадры, озвучка) требуется оплатить 19 ₽.
+                              </p>
+                              
+                              <div className="flex flex-col gap-2">
+                                <button 
+                                  onClick={handlePayActivation}
+                                  className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-[size:200%_auto] animate-shimmer shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:scale-[1.01] transition-all cursor-pointer"
+                                >
+                                  Оплатить 19 ₽
+                                </button>
+                                
+                                {/* Dev sandbox bypass */}
+                                <button 
+                                  onClick={() => {
+                                    setSimulationProgress(100);
+                                    setCurrentScreen("generating");
+                                    setLoaderText("Запуск демо-рендеринга...");
+                                    setTimeout(async () => {
+                                      if (createdEpisodeId) {
+                                        await resumeGeneration(createdEpisodeId, userId, pendingScenes);
+                                      }
+                                      setIsGenerating(false);
+                                    }, 1200);
+                                  }}
+                                  className="text-zinc-500 hover:text-zinc-400 text-[8px] tracking-wide font-bold uppercase transition-colors py-1 cursor-pointer"
+                                >
+                                  [ Демо-режим ]
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+
+                      {/* Subtitle bottom banner if not in play */}
+                      {showChatController && (
+                        <div className="w-full bg-purple-950/15 border border-purple-500/20 backdrop-blur-md rounded-2xl p-4 text-center animate-scale-in">
+                          <p className="text-purple-300 text-xs font-semibold">
+                            Сцена завершилась. Выберите продолжение истории на панели справа.
+                          </p>
+                        </div>
+                      )}
+
                     </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+                  ) : (
+                    /* Empty State view */
+                    <div className="flex flex-col items-center justify-center max-w-sm text-center gap-6 p-6 bg-zinc-950/20 border border-zinc-900 rounded-3xl backdrop-blur-xl">
+                      <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center border border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.35)]">
+                        <Icons.Sparkles className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Создайте свой первый сериал</h3>
+                        <p className="text-[10px] text-zinc-500 leading-relaxed">
+                          Введите любую креативную идею или выберите готовый пресет на панели справа, чтобы начать генерацию.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-          </div>
+                {/* Right Column: Generation workspace */}
+                <div className="w-96 p-6 flex flex-col gap-6 overflow-y-auto h-full scrollbar-none border-l border-zinc-900 bg-zinc-950/10">
+                  
+                  {/* Box 1: Generation Control */}
+                  <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
+                    <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
+                      <Icons.Sparkles className="w-4 h-4 text-purple-400" />
+                      <h3 className="text-xs font-black text-white uppercase tracking-wider">Генератор серии</h3>
+                    </div>
+
+                    {/* Text Area */}
+                    <div className="flex flex-col gap-2.5">
+                      <label className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
+                        Что произойдет дальше?
+                      </label>
+                      <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="Опишите действие, например: Герой выбивает ржавую дверь плечом и прыгает в темную вентиляционную шахту..."
+                        className="w-full h-28 bg-black border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 resize-none transition-colors"
+                      />
+                    </div>
+
+                    {/* Active Choices from parsing if ready */}
+                    {selectedEpisode && showChatController && (
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[8px] text-purple-400 font-mono uppercase tracking-widest">
+                          Варианты на выбор:
+                        </span>
+                        <div className="flex flex-col gap-1.5">
+                          {getActiveChips().map((chipText, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                setPrompt(chipText);
+                              }}
+                              className="text-left bg-purple-950/15 hover:bg-purple-950/30 border border-purple-500/20 text-purple-300 text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer hover:border-purple-500/40"
+                            >
+                              {chipText}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Generate button */}
+                    <button
+                      onClick={() => handleStartGeneration()}
+                      disabled={isGenerating}
+                      className="w-full relative overflow-hidden py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-white select-none active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.15)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
+                          Создание...
+                        </>
+                      ) : (
+                        <>
+                          <Icons.Sparkles className="w-3.5 h-3.5" />
+                          Запустить рендер
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Box 2: Preset Inspirations */}
+                  <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
+                    <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
+                      Готовые идеи и сюжеты
+                    </h4>
+                    <div className="grid grid-cols-1 gap-2.5">
+                      {PRESET_PROMPTS.map((item, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setPrompt(item.prompt);
+                          }}
+                          className="flex items-center gap-3 text-left p-2.5 rounded-xl bg-zinc-900/30 border border-zinc-900 hover:bg-zinc-900/60 hover:border-zinc-800 transition-all group"
+                        >
+                          <span className="text-lg group-hover:scale-110 transition-transform">{item.emoji}</span>
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-bold text-white">{item.title}</span>
+                            <span className="text-[8px] text-zinc-500 font-mono mt-0.5 truncate max-w-[210px]">{item.prompt}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              </>
+            )}
         </main>
 
         {/* Auth Sheet Overlay for Desktop */}
