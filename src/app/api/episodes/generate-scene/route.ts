@@ -6,6 +6,7 @@ import path from 'path';
 export const dynamic = 'force-dynamic';
 
 interface SceneInput {
+  scene_text?: string;
   image_prompt: string;
   voice_text: string;
   camera_effect: string;

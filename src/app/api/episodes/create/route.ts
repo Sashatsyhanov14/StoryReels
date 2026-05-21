@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 export const dynamic = 'force-dynamic';
 
 interface SceneData {
+  scene_text: string;
   image_prompt: string;
   voice_text: string;
   camera_effect: string;
@@ -15,7 +16,8 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
   const apiKey = process.env.POLZA_API_KEY;
   if (!apiKey) {
     console.warn('POLZA_API_KEY is not defined, using mock script.');
-    return Array.from({ length: 15 }, (_, i) => ({
+    return Array.from({ length: 12 }, (_, i) => ({
+      scene_text: `Описание действия и визуала для кадра ${i + 1}`,
       image_prompt: `16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, maintaining the main character design, based on ${userPrompt}`,
       voice_text: `Сцена ${i + 1}: Глубокий закадровый текст на русском. Сюжет для "${userPrompt}"`,
       camera_effect: i % 2 === 0 ? 'pan-diagonal' : 'zoom-in-fast',
@@ -34,24 +36,25 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
       messages: [
         {
           role: 'system',
-          content: `Ты — режиссер и сценарист вирусных кинематографичных Reels/TikTok видео (в стиле крутых эдитов из CapCut). Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал, который ощущается как ОДНО ЦЕЛЬНОЕ непрерывное видео из 15 кадров.
+          content: `Ты — режиссер и сценарист вирусных кинематографичных Reels/TikTok видео (в стиле крутых эдитов из CapCut). Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал, который ощущается как ОДНО ЦЕЛЬНОЕ непрерывное видео из 12 кадров.
 
 Стиль: 16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, fantasy or sci-fi depending on the prompt.
 Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне. Эти кадры будут склеены в одно видео, поэтому визуальный стиль должен быть максимально консистентным.
 
 Правила драматургии и озвучки (CapCut style):
 Кадры 1-3: Мощный хук (hook), экспозиция, завязка. Закадровый голос должен интриговать с первой секунды.
-Кадры 4-10: Развитие сюжета, нарастание напряжения. Текст (voice_text) должен плавно перетекать из кадра в кадр, как единый монолог диктора, а не отдельные обрывки.
-Кадры 11-14: Пик конфликта, экшен, безысходность.
-Кадр 15: Клиффхэнгер или мощный вывод. Сцена обрывается на интригующем моменте.
+Кадры 4-9: Развитие сюжета, нарастание напряжения. Текст (voice_text) должен плавно перетекать из кадра в кадр, как единый монолог диктора, а не отдельные обрывки.
+Кадры 10-11: Пик конфликта, экшен, безысходность.
+Кадр 12: Клиффхэнгер или мощный вывод. Сцена обрывается на интригующем моменте.
 
 В полях camera_effect используй значения: 'zoom-in-fast', 'zoom-out-slow', 'camera-shake', 'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal'. Чередуй их логично для видео-монтажа.
 В полях transition используй: 'fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade'.
 
-Выдай ответ СТРОГО в формате JSON (массив из 15 объектов), без markdown-разметки:
+Выдай ответ СТРОГО в формате JSON (массив из 12 объектов), без markdown-разметки:
 [
   {
     "frame": 1,
+    "scene_text": "Текст сценария: краткое описание того, что происходит в этой сцене",
     "image_prompt": "Detailed description of the scene for the image generator in English, maintaining the main character's design and 16-bit pixel art retro JRPG style",
     "voice_text": "Глубокий непрерывный закадровый текст на русском для TTS. Плотный сюжет, фраза может начаться здесь...",
     "camera_effect": "camera-shake",
@@ -59,6 +62,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
   },
   {
     "frame": 2,
+    "scene_text": "Продолжение действия, описание визуальной обстановки для сценария",
     "image_prompt": "...",
     "voice_text": "...и логично продолжиться в следующем кадре, создавая эффект непрерывного аудио-потока.",
     "camera_effect": "zoom-in-fast",
@@ -96,9 +100,10 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
   const transitions = ['fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade'];
   const cameraEffects = ['zoom-in-fast', 'zoom-out-slow', 'camera-shake', 'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal'];
 
-  return rawScenes.slice(0, 15).map((scene: unknown, i) => {
+  return rawScenes.slice(0, 12).map((scene: unknown, i) => {
     const s = scene as Record<string, unknown>;
     return {
+      scene_text: typeof s.scene_text === 'string' ? s.scene_text : `Сцена ${i + 1}`,
       image_prompt: typeof s.image_prompt === 'string' ? s.image_prompt : '16-bit pixel art style, retro JRPG aesthetic',
       voice_text: typeof s.voice_text === 'string' ? s.voice_text : '',
       camera_effect: typeof s.camera_effect === 'string' && cameraEffects.includes(s.camera_effect)
