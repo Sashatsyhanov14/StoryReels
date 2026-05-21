@@ -265,3 +265,85 @@ body {
 .animate-float-subtle {
   animation: float-subtle 4s ease-in-out infinite;
 }
+
+/* CapCut-style word-by-word subtitle reveal */
+@keyframes subtitle-word-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.03);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+.subtitle-word {
+  display: inline-block;
+  opacity: 0;
+  animation: subtitle-word-reveal 0.35s ease-out forwards;
+}
+
+/* Active word highlight (karaoke style) */
+@keyframes subtitle-word-active {
+  0% {
+    color: #ffffff;
+    text-shadow: none;
+  }
+  50% {
+    color: #e9d5ff;
+    text-shadow: 0 0 12px rgba(168, 85, 247, 0.6), 0 0 4px rgba(236, 72, 153, 0.3);
+  }
+  100% {
+    color: #ffffff;
+    text-shadow: 0 0 4px rgba(168, 85, 247, 0.2);
+  }
+}
+
+.subtitle-word-active {
+  animation: subtitle-word-active 0.6s ease-out forwards;
+}
+
+/* Subtitle container entrance */
+@keyframes subtitle-container-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    backdrop-filter: blur(16px);
+  }
+}
+
+.animate-subtitle-enter {
+  animation: subtitle-container-enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Scene crossfade for smooth image transitions */
+@keyframes scene-crossfade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-scene-crossfade {
+  animation: scene-crossfade-in 0.6s ease-in-out;
+}
+
+/* Scrollbar hidden utility */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

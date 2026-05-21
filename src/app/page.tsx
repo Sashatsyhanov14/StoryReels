@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/lib/supabase-client";
 import { Icons } from "@/components/icons";
+import { AnimatedSubtitles } from "@/components/AnimatedSubtitles";
 
 interface Scene {
   imageUrl: string;
@@ -1193,14 +1194,14 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Subtitles text near bottom-32 */}
+                  {/* CapCut-style Animated Subtitles */}
                   {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
-                    <div className="mt-auto mb-36 px-4 w-full flex justify-center text-center pointer-events-none z-30 animate-fade-in">
-                      <div className="w-full max-w-[340px] bg-black/65 backdrop-blur-md border border-zinc-800/40 rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.75)]">
-                        <p className="text-white font-extrabold text-xs sm:text-sm leading-relaxed tracking-wide">
-                          {selectedEpisode.scenes[activeSceneIndex].text}
-                        </p>
-                      </div>
+                    <div className="mt-auto mb-36 px-4 w-full flex justify-center text-center pointer-events-none z-30">
+                      <AnimatedSubtitles
+                        text={selectedEpisode.scenes[activeSceneIndex].text}
+                        sceneKey={activeSceneIndex}
+                        isPlaying={isPlaying}
+                      />
                     </div>
                   )}
                 </div>
@@ -1427,7 +1428,7 @@ export default function Home() {
                             {ep.title}
                           </h5>
                           <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
-                            {ep.scenes ? `${ep.scenes.length} серии` : "0 серии"}
+                            {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
                           </span>
                         </div>
                       </button>
@@ -1545,7 +1546,7 @@ export default function Home() {
                         {ep.title}
                       </h5>
                       <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
-                        {ep.scenes ? `${ep.scenes.length} серии` : "0 серии"}
+                        {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
                       </span>
                     </div>
                   </button>
@@ -1635,14 +1636,14 @@ export default function Home() {
                       )}
 
                       {/* Interactive overlay buttons inside player */}
-                      <div className="absolute bottom-5 inset-x-4 z-30 flex justify-between items-center pointer-events-auto w-full">
-                        {/* Subtitle text */}
+                      <div className="absolute bottom-5 inset-x-4 z-30 flex justify-center items-center pointer-events-auto w-full">
+                        {/* CapCut-style Animated Subtitles */}
                         {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
-                          <div className="w-[calc(100%-2rem)] bg-black/70 backdrop-blur-md border border-zinc-800/40 rounded-2xl p-4 text-center mx-auto">
-                            <p className="text-white text-xs leading-relaxed font-bold">
-                              {selectedEpisode.scenes[activeSceneIndex].text}
-                            </p>
-                          </div>
+                          <AnimatedSubtitles
+                            text={selectedEpisode.scenes[activeSceneIndex].text}
+                            sceneKey={activeSceneIndex}
+                            isPlaying={isPlaying}
+                          />
                         )}
                       </div>
                     </div>
