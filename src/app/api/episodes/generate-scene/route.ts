@@ -45,22 +45,25 @@ async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30)
   for (let i = 0; i < maxAttempts; i++) {
     await new Promise((res) => setTimeout(res, 2000));
     try {
-      const response = await fetch(`https://polza.ai/api/v1/media/${taskId}`, {
+      const response = await fetch(`https://api.gen-api.ru/api/v1/request/get/${taskId}`, {
         headers: { 'Authorization': `Bearer ${apiKey}` }
       });
 
       if (!response.ok) continue;
 
       const result = await response.json();
-      if (result.status === 'completed') {
-        if (result.data) {
-          if (result.data.url) return result.data.url;
-          if (Array.isArray(result.data) && result.data[0]?.url) return result.data[0].url;
+      if (result.status === 'success') {
+        if (result.result) {
+          if (typeof result.result === 'string') return result.result;
+          if (result.result.url) return result.result.url;
+          if (Array.isArray(result.result) && result.result[0]) {
+             return typeof result.result[0] === 'string' ? result.result[0] : result.result[0].url;
+          }
         }
-        throw new Error('Completed status but no URL found');
+        throw new Error('Success status but no URL found');
       }
-      if (result.status === 'failed') {
-        throw new Error(result.error?.message || 'unknown error');
+      if (result.status === 'failed' || result.status === 'error') {
+        throw new Error(result.error || result.message || 'unknown error');
       }
     } catch (err) {
       console.error(`Poll attempt ${i + 1} error:`, err);
@@ -70,15 +73,16 @@ async function pollImageResult(taskId: string, apiKey: string, maxAttempts = 30)
 }
 
 async function generateImage(prompt: string): Promise<string> {
-  const apiKey = process.env.POLZA_API_KEY;
+  const apiKey = process.env.GEN_API_KEY;
   if (!apiKey) {
+    console.warn('GEN_API_KEY is missing, using fallback image.');
     return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
   }
 
   let lastError: unknown = null;
   for (let i = 0; i < 3; i++) {
     try {
-      const response = await fetch('https://polza.ai/api/v1/media', {
+      const response = await fetch('https://api.gen-api.ru/api/v1/networks/sdxl', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,34 +90,34 @@ async function generateImage(prompt: string): Promise<string> {
           'Connection': 'close'
         },
         body: JSON.stringify({
-          model: 'qwen/image',
-          input: {
-            prompt,
-            aspect_ratio: '9:16'
-          }
+          prompt,
+          aspect_ratio: '9:16'
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Image generation request failed: ${response.status} - ${errorText}`);
+        console.error(`Gen-API Image generation request failed: ${response.status} - ${errorText}`);
         throw new Error(`API failed: ${response.status}`);
       }
 
       const result = await response.json();
-      if (result.status === 'completed' && result.data) {
-        if (result.data.url) return result.data.url;
-        if (Array.isArray(result.data) && result.data[0]?.url) return result.data[0].url;
+      if (result.status === 'success' && result.result) {
+        if (typeof result.result === 'string') return result.result;
+        if (result.result.url) return result.result.url;
+        if (Array.isArray(result.result) && result.result[0]) {
+           return typeof result.result[0] === 'string' ? result.result[0] : result.result[0].url;
+        }
       }
 
-      const taskId = result.id || result.requestId || result.taskId;
+      const taskId = result.request_id || result.id || result.taskId;
       if (taskId) {
         return await pollImageResult(taskId, apiKey);
       }
       throw new Error('Unexpected response format');
     } catch (err) {
       lastError = err;
-      console.warn(`Polza Image generation attempt ${i + 1} failed:`, err);
+      console.warn(`Gen-API Image generation attempt ${i + 1} failed:`, err);
       if (i < 2) await new Promise(res => setTimeout(res, 1500));
     }
   }
