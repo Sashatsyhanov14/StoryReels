@@ -80,12 +80,25 @@ async function generateImage(prompt: string): Promise<string> {
     return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80';
   }
 
-  // Force JRPG 16-bit pixel art style
-  const styleTrigger = "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, vibrant game colors";
-  let finalPrompt = prompt;
-  if (!finalPrompt.toLowerCase().includes("pixel art") && !finalPrompt.toLowerCase().includes("jrpg")) {
-    finalPrompt = `${prompt}, ${styleTrigger}`;
+  // Clean up any existing prefix if it starts with similar words to avoid duplication
+  let cleanPrompt = prompt.trim();
+  const prefixesToRemove = [
+    "16-bit pixel art style, retro jrpg aesthetic, snes hd-2d style, detailed pixel art",
+    "16-bit pixel art style, retro jrpg aesthetic, snes hd-2d style",
+    "16-bit pixel art style, retro jrpg aesthetic",
+    "16-bit pixel art style",
+  ];
+  for (const prefix of prefixesToRemove) {
+    if (cleanPrompt.toLowerCase().startsWith(prefix)) {
+      cleanPrompt = cleanPrompt.substring(prefix.length).trim();
+      if (cleanPrompt.startsWith(",")) {
+        cleanPrompt = cleanPrompt.substring(1).trim();
+      }
+    }
   }
+
+  // Force JRPG 16-bit pixel art style at the very beginning of the prompt for maximum weight
+  const finalPrompt = `16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, vibrant game colors, ${cleanPrompt}`;
 
   let lastError: unknown = null;
   for (let i = 0; i < 3; i++) {
