@@ -653,7 +653,7 @@ export default function Home() {
       <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none z-0 animate-pulse"></div>
 
       {/* Desktop Container (Side info panels + Phone mockup frame) */}
-      <div className="w-full max-w-6xl z-10 flex flex-col md:flex-row items-center justify-center gap-12 px-6 py-6 sm:py-12">
+      <div className="lg:hidden w-full max-w-6xl z-10 flex flex-col md:flex-row items-center justify-center gap-12 px-6 py-6 sm:py-12">
         
         {/* Left Side: Product pitch on desktop screens */}
         <div className="hidden md:flex flex-col max-w-md gap-6 text-left">
@@ -1510,6 +1510,447 @@ export default function Home() {
         </div>
 
       </div>
+
+      {/* ========================================================================= */}
+      {/* DESKTOP DASHBOARD (GRID VIEW FOR SCREEN >= 1024px) */}
+      {/* ========================================================================= */}
+      {(currentScreen === "player" || currentScreen === "generating" || currentScreen === "paywall" || currentScreen === "auth_sheet") && (
+        <div className="hidden lg:flex w-full h-screen bg-[#030303] overflow-hidden text-zinc-200 z-10 relative">
+          
+          {/* Left Sidebar (Library & Profile) */}
+          <aside className="w-80 bg-zinc-950/60 border-r border-zinc-900 flex flex-col justify-between h-full">
+            {/* Sidebar Top: Logo */}
+            <div className="p-6 border-b border-zinc-900 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                  <span className="text-lg font-bold text-white">S</span>
+                </div>
+                <div>
+                  <h1 className="text-lg font-extrabold tracking-tight text-white leading-none">
+                    Story<span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Reels</span>
+                  </h1>
+                  <span className="text-[8px] font-mono text-zinc-500 tracking-wider font-bold">STUDIO WORKSPACE</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar Middle: Library List */}
+            <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-3 scrollbar-none">
+              <div className="flex justify-between items-center px-1 mb-1">
+                <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
+                  Моя библиотека
+                </h4>
+                <span className="text-[10px] bg-purple-950/40 text-purple-400 px-2 py-0.5 rounded-full font-mono border border-purple-500/25">
+                  {episodes.length}
+                </span>
+              </div>
+
+              {episodes.length === 0 ? (
+                <div className="text-center py-8 text-zinc-600 text-xs">
+                  Библиотека пуста
+                </div>
+              ) : (
+                episodes.map((ep) => (
+                  <button
+                    key={ep.id}
+                    onClick={() => {
+                      setSelectedEpisode(ep);
+                      setActiveSceneIndex(0);
+                      setShowChatController(false);
+                      setIsPlaying(false);
+                    }}
+                    className={`flex gap-3 text-left rounded-2xl p-3 transition-all border ${
+                      selectedEpisode?.id === ep.id
+                        ? "bg-purple-950/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.05)]"
+                        : "border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
+                    }`}
+                  >
+                    <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner">
+                      {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img 
+                          src={ep.scenes[0].imageUrl} 
+                          alt="" 
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-lg">🎞️</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col justify-center overflow-hidden">
+                      <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
+                        {ep.title}
+                      </h5>
+                      <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
+                        {ep.scenes ? `${ep.scenes.length} серии` : "0 серии"}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+
+            {/* Sidebar Bottom: Profile */}
+            <div className="p-6 border-t border-zinc-900 bg-zinc-900/10 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8.5 w-8.5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-sm text-purple-400">
+                    U
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-white">Пользователь</span>
+                    <span className="text-[9px] text-zinc-500 font-mono uppercase">Баланс: {tokenBalance} 🪙</span>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    setIsRegistered(true);
+                    setCurrentScreen("player");
+                  }}
+                  className="text-red-500/80 hover:text-red-400 text-[10px] font-bold uppercase transition-colors p-1.5 cursor-pointer"
+                >
+                  Выйти
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Center Area */}
+          <main className="flex-grow flex h-full overflow-hidden bg-black/20">
+            
+            {/* Center Column: The Active Player */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6 border-r border-zinc-900 h-full overflow-y-auto scrollbar-none">
+              {selectedEpisode ? (
+                <div className="flex flex-col items-center gap-6 w-full max-w-[480px]">
+                  
+                  {/* Header title */}
+                  <div className="text-center w-full">
+                    <h2 className="text-base font-black text-white uppercase tracking-wider mb-1">{selectedEpisode.title}</h2>
+                    <p className="text-[10px] text-zinc-500 font-mono">кадр {activeSceneIndex + 1} из {selectedEpisode.scenes.length}</p>
+                  </div>
+
+                  {/* Vertical Story Player Screen */}
+                  <div className="relative w-full aspect-[9/16] max-h-[580px] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.8)]">
+                    {/* Media Content */}
+                    <div className="w-full h-full relative" onClick={handlePlayerScreenClick}>
+                      {selectedEpisode.scenes[activeSceneIndex] && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img 
+                          src={selectedEpisode.scenes[activeSceneIndex].imageUrl} 
+                          alt="" 
+                          className="w-full h-full object-cover select-none"
+                        />
+                      )}
+
+                      {/* Progress bars row at the top */}
+                      <div className="absolute top-4 inset-x-3 z-30 flex gap-1 pointer-events-none">
+                        {selectedEpisode.scenes.map((_, idx) => {
+                          const isWatched = idx < activeSceneIndex;
+                          const isCurrent = idx === activeSceneIndex;
+                          return (
+                            <div key={idx} className="h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all ease-linear ${
+                                  isWatched ? "w-full bg-white" : isCurrent ? "bg-white" : "w-0 bg-transparent"
+                                }`}
+                                style={isCurrent ? { width: `${sceneProgress}%` } : {}}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Play/Pause Overlay indicator */}
+                      {!isPlaying && !showChatController && (
+                        <div className="absolute inset-0 bg-black/20 z-20 flex items-center justify-center pointer-events-none">
+                          <div className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
+                            <Icons.Play className="w-5 h-5 fill-white text-white translate-x-0.5" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Interactive overlay buttons inside player */}
+                      <div className="absolute bottom-5 inset-x-4 z-30 flex justify-between items-center pointer-events-auto w-full">
+                        {/* Subtitle text */}
+                        {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
+                          <div className="w-[calc(100%-2rem)] bg-black/70 backdrop-blur-md border border-zinc-800/40 rounded-2xl p-4 text-center mx-auto">
+                            <p className="text-white text-xs leading-relaxed font-bold">
+                              {selectedEpisode.scenes[activeSceneIndex].text}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Active Simulation Progress Overlay */}
+                    {(isGenerating || currentScreen === "generating") && (
+                      <div className="absolute inset-0 bg-black/95 z-40 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                        <div className="relative mb-4">
+                          <div className="h-16 w-16 rounded-full border-[3px] border-purple-500/10 border-t-purple-500 animate-spin"></div>
+                          <div className="absolute inset-0 flex items-center justify-center text-xl animate-pulse">🧠</div>
+                        </div>
+                        <h3 className="text-xs font-bold text-white tracking-wider animate-pulse duration-1000 mb-2">
+                          {genStep === "idle" ? loaderText : 
+                           genStep === "script" ? "Генерация сюжета..." :
+                           genStep === "keyframes" ? "Рендеринг кадров..." :
+                           genStep === "voiceover" ? "Синтез озвучки..." : "Сборка серии..."}
+                        </h3>
+                        <div className="w-36 h-1 bg-zinc-900 rounded-full overflow-hidden relative shadow-[0_0_10px_rgba(0,0,0,0.5)] mb-1">
+                          <div 
+                            className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 rounded-full shadow-[0_0_15px_#a855f7] transition-all duration-300"
+                            style={{ width: `${isGenerating ? generationProgress : simulationProgress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-[9px] font-mono text-zinc-500 font-bold">{isGenerating ? generationProgress : simulationProgress}%</span>
+                      </div>
+                    )}
+
+                    {/* Active Paywall Modal Overlay */}
+                    {currentScreen === "paywall" && (
+                      <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-45 flex items-center justify-center p-4">
+                        <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900/80 rounded-3xl p-5 text-center shadow-2xl max-w-[90%] animate-scale-in">
+                          <h4 className="text-xs font-black text-white uppercase tracking-wider mb-2">Создание пилотной серии</h4>
+                          <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">
+                            Для запуска ИИ-генерации (сценарий, Flux-кадры, озвучка) требуется оплатить 19 ₽.
+                          </p>
+                          
+                          <div className="flex flex-col gap-2">
+                            <button 
+                              onClick={handlePayActivation}
+                              className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-[size:200%_auto] animate-shimmer shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:scale-[1.01] transition-all cursor-pointer"
+                            >
+                              Оплатить 19 ₽
+                            </button>
+                            
+                            {/* Dev sandbox bypass */}
+                            <button 
+                              onClick={() => {
+                                setSimulationProgress(100);
+                                setCurrentScreen("player");
+                                setIsGenerating(true);
+                                setLoaderText("Запуск демо-рендеринга...");
+                                setTimeout(async () => {
+                                  if (createdEpisodeId) {
+                                    await resumeGeneration(createdEpisodeId, userId, pendingScenes);
+                                  }
+                                  setIsGenerating(false);
+                                }, 1200);
+                              }}
+                              className="text-zinc-500 hover:text-zinc-400 text-[8px] tracking-wide font-bold uppercase transition-colors py-1 cursor-pointer"
+                            >
+                              [ Демо-режим ]
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+
+                  {/* Subtitle bottom banner if not in play */}
+                {showChatController && (
+                  <div className="w-full bg-purple-950/15 border border-purple-500/20 backdrop-blur-md rounded-2xl p-4 text-center animate-scale-in">
+                    <p className="text-purple-300 text-xs font-semibold">
+                      Сцена завершилась. Выберите продолжение истории на панели справа.
+                    </p>
+                  </div>
+                )}
+
+              </div>
+            ) : (
+              /* Empty State view */
+              <div className="flex flex-col items-center justify-center max-w-sm text-center gap-6 p-6 bg-zinc-950/20 border border-zinc-900 rounded-3xl backdrop-blur-xl">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center border border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.35)]">
+                  <Icons.Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Создайте свой первый сериал</h3>
+                  <p className="text-[10px] text-zinc-500 leading-relaxed">
+                    Введите любую креативную идею или выберите готовый пресет на панели справа, чтобы начать генерацию.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Generation workspace */}
+          <div className="w-96 p-6 flex flex-col gap-6 overflow-y-auto h-full scrollbar-none border-l border-zinc-900 bg-zinc-950/10">
+            
+            {/* Box 1: Generation Control */}
+            <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
+              <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
+                <Icons.Sparkles className="w-4 h-4 text-purple-400" />
+                <h3 className="text-xs font-black text-white uppercase tracking-wider">Генератор серии</h3>
+              </div>
+
+              {/* Text Area */}
+              <div className="flex flex-col gap-2.5">
+                <label className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
+                  Что произойдет дальше?
+                </label>
+                <textarea
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Опишите действие, например: Герой выбивает ржавую дверь плечом и прыгает в темную вентиляционную шахту..."
+                  className="w-full h-28 bg-black border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 resize-none transition-colors"
+                />
+              </div>
+
+              {/* Active Choices from parsing if ready */}
+              {selectedEpisode && showChatController && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-[8px] text-purple-400 font-mono uppercase tracking-widest">
+                    Варианты на выбор:
+                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    {getActiveChips().map((chipText, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setPrompt(chipText);
+                        }}
+                        className="text-left bg-purple-950/15 hover:bg-purple-950/30 border border-purple-500/20 text-purple-300 text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer hover:border-purple-500/40"
+                      >
+                        {chipText}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Generate button */}
+              <button
+                onClick={() => handleStartGeneration()}
+                disabled={isGenerating}
+                className="w-full relative overflow-hidden py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-white select-none active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.15)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isGenerating ? (
+                  <>
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
+                    Создание...
+                  </>
+                ) : (
+                  <>
+                    <Icons.Sparkles className="w-3.5 h-3.5" />
+                    Запустить рендер
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Box 2: Preset Inspirations */}
+            <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
+              <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
+                Готовые идеи и сюжеты
+              </h4>
+              <div className="grid grid-cols-1 gap-2.5">
+                {PRESET_PROMPTS.map((item, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setPrompt(item.prompt);
+                    }}
+                    className="flex items-center gap-3 text-left p-2.5 rounded-xl bg-zinc-900/30 border border-zinc-900 hover:bg-zinc-900/60 hover:border-zinc-800 transition-all group"
+                  >
+                    <span className="text-lg group-hover:scale-110 transition-transform">{item.emoji}</span>
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-white">{item.title}</span>
+                      <span className="text-[8px] text-zinc-500 font-mono mt-0.5 truncate max-w-[210px]">{item.prompt}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Box 3: Realtime Status Logs */}
+            <div className="bg-zinc-950/30 border border-zinc-900 rounded-3xl p-4.5 text-[9px] font-mono text-zinc-500 flex flex-col gap-2">
+              <div className="flex justify-between border-b border-zinc-900/60 pb-1.5">
+                <span>Провайдер скрипта:</span>
+                <span className="text-cyan-400 font-bold">Polza.ai LLM</span>
+              </div>
+              <div className="flex justify-between border-b border-zinc-900/60 pb-1.5">
+                <span>Изображения:</span>
+                <span className="text-pink-400 font-bold">Flux Schnell</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Озвучка:</span>
+                <span className="text-purple-400 font-bold">TTS Engine</span>
+              </div>
+            </div>
+
+          </div>
+        </main>
+
+        {/* Auth Sheet Overlay for Desktop */}
+        {currentScreen === "auth_sheet" && (
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-fade-in">
+            <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900 rounded-3xl p-8 max-w-sm w-full text-center shadow-[0_20px_50px_rgba(168,85,247,0.15)] flex flex-col gap-6 animate-scale-in">
+              <div className="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-1"></div>
+              <div>
+                <h3 className="text-lg font-black text-white tracking-tight mb-1">Куда сохранить сериал?</h3>
+                <p className="text-[10px] text-zinc-500 leading-relaxed">
+                  Создайте профиль, чтобы сохранять серии, отслеживать прогресс и тратить токены.
+                </p>
+              </div>
+
+              {/* OAuth / Auth Buttons */}
+              <div className="flex flex-col gap-3 relative">
+                {authLoading && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
+                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent"></div>
+                  </div>
+                )}
+                
+                <button 
+                  onClick={handleTelegramLogin}
+                  disabled={authLoading}
+                  className="bg-[#2AABEE] hover:bg-[#229ED9] text-white py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-lg active:scale-95"
+                >
+                  Войти через Telegram
+                </button>
+
+                <button 
+                  onClick={() => handleOAuthLogin("google")}
+                  disabled={authLoading}
+                  className="bg-white hover:bg-zinc-100 text-black border border-zinc-200 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-md active:scale-95"
+                >
+                  Войти через Google
+                </button>
+              </div>
+
+              {/* Email Form */}
+              <form onSubmit={handleMagicLink} className="relative mt-2">
+                <input 
+                  type="email" 
+                  placeholder="Или почта для входа" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={authLoading}
+                  className="w-full bg-black/60 border border-zinc-800 text-white placeholder-zinc-500 text-[10px] px-3.5 py-3 rounded-xl focus:outline-none focus:border-purple-500 transition-colors"
+                />
+                <button 
+                  type="submit" 
+                  disabled={authLoading || !email.includes("@")}
+                  className="absolute right-1.5 top-1.5 bottom-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 px-3.5 rounded-lg text-[9px] font-bold text-white transition-colors"
+                >
+                  Войти
+                </button>
+              </form>
+
+              <button 
+                onClick={() => setCurrentScreen("player")}
+                className="text-zinc-500 hover:text-zinc-400 text-xs font-semibold cursor-pointer transition-colors"
+              >
+                Вернуться в плеер
+              </button>
+            </div>
+          </div>
+        )}
+
+      </div>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes shimmer {
