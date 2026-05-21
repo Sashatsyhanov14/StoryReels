@@ -16,7 +16,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
   if (!apiKey) {
     console.warn('POLZA_API_KEY is not defined, using mock script.');
     return Array.from({ length: 15 }, (_, i) => ({
-      image_prompt: `cyberpunk neon noir scene part ${i + 1} maintaining the main character design in 90s anime style, based on ${userPrompt}`,
+      image_prompt: `16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, maintaining the main character design, based on ${userPrompt}`,
       voice_text: `Сцена ${i + 1}: Глубокий закадровый текст на русском. Сюжет для "${userPrompt}"`,
       camera_effect: i % 2 === 0 ? 'pan-diagonal' : 'zoom-in-fast',
       transition: i % 2 === 0 ? 'fade-to-black' : 'glitch-cut'
@@ -36,7 +36,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
           role: 'system',
           content: `Ты — режиссер и сценарист вирусных кинематографичных Reels/TikTok видео (в стиле крутых эдитов из CapCut). Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал, который ощущается как ОДНО ЦЕЛЬНОЕ непрерывное видео из 15 кадров.
 
-Стиль: flat vector 2d cartoon style, 90s anime aesthetic, cinematic lighting.
+Стиль: 16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, fantasy or sci-fi depending on the prompt.
 Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне. Эти кадры будут склеены в одно видео, поэтому визуальный стиль должен быть максимально консистентным.
 
 Правила драматургии и озвучки (CapCut style):
@@ -52,7 +52,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
 [
   {
     "frame": 1,
-    "image_prompt": "Detailed description of the scene for Flux Schnell/Z-Image in English, maintaining the main character's design and 90s anime style",
+    "image_prompt": "Detailed description of the scene for the image generator in English, maintaining the main character's design and 16-bit pixel art retro JRPG style",
     "voice_text": "Глубокий непрерывный закадровый текст на русском для TTS. Плотный сюжет, фраза может начаться здесь...",
     "camera_effect": "camera-shake",
     "transition": "cross-fade"
@@ -99,7 +99,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
   return rawScenes.slice(0, 15).map((scene: unknown, i) => {
     const s = scene as Record<string, unknown>;
     return {
-      image_prompt: typeof s.image_prompt === 'string' ? s.image_prompt : 'cinematic shot, 90s anime style',
+      image_prompt: typeof s.image_prompt === 'string' ? s.image_prompt : '16-bit pixel art style, retro JRPG aesthetic',
       voice_text: typeof s.voice_text === 'string' ? s.voice_text : '',
       camera_effect: typeof s.camera_effect === 'string' && cameraEffects.includes(s.camera_effect)
         ? s.camera_effect
