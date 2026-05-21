@@ -1472,54 +1472,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Right Side: Quick facts / stats table for desktop users */}
-        <div className="hidden lg:flex flex-col max-w-sm gap-6 text-left">
-          <h3 className="text-sm font-bold tracking-widest text-zinc-500 uppercase font-mono">
-            СТАТИСТИКА И ЛОГИ
-          </h3>
-          
-          <div className="bg-zinc-900/30 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4 text-xs font-mono text-zinc-400">
-            <div className="flex justify-between border-b border-zinc-900 pb-2">
-              <span>Сессии пользователя</span>
-              <span className="text-white font-bold">{isRegistered ? "Авторизован" : "Аноним"}</span>
-            </div>
-            <div className="flex justify-between border-b border-zinc-900 pb-2">
-              <span>Токены в базе данных</span>
-              <span className="text-purple-400 font-bold">{tokenBalance} 🪙</span>
-            </div>
-            <div className="flex justify-between border-b border-zinc-900 pb-2">
-              <span>Всего сериалов в БД</span>
-              <span className="text-white font-bold">{episodes.length}</span>
-            </div>
-            <div className="flex justify-between pb-1">
-              <span>Провайдер скриптов</span>
-              <span className="text-cyan-400 font-bold">Polza.ai LLM</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Рендер изображений</span>
-              <span className="text-pink-400 font-bold">Flux Schnell</span>
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            {currentScreen === "player" && (
-              <button 
-                onClick={() => { setPrompt(""); setShowPromptDrawer(true); }}
-                className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-bold py-3 rounded-xl border border-zinc-800 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
-              >
-                <Icons.Sparkles className="w-3.5 h-3.5 text-purple-400" /> Создать новый
-              </button>
-            )}
-            
-            <button 
-              onClick={() => setSidebarOpen(true)}
-              className="flex-grow bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/30 text-purple-300 text-[11px] font-bold py-3 rounded-xl transition-all cursor-pointer active:scale-95"
-            >
-              📂 Библиотека серий
-            </button>
-          </div>
-        </div>
-
       </div>
 
       {/* ========================================================================= */}
@@ -1872,22 +1824,6 @@ export default function Home() {
                     </div>
                   </button>
                 ))}
-              </div>
-            </div>
-
-            {/* Box 3: Realtime Status Logs */}
-            <div className="bg-zinc-950/30 border border-zinc-900 rounded-3xl p-4.5 text-[9px] font-mono text-zinc-500 flex flex-col gap-2">
-              <div className="flex justify-between border-b border-zinc-900/60 pb-1.5">
-                <span>Провайдер скрипта:</span>
-                <span className="text-cyan-400 font-bold">Polza.ai LLM</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-900/60 pb-1.5">
-                <span>Изображения:</span>
-                <span className="text-pink-400 font-bold">Flux Schnell</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Озвучка:</span>
-                <span className="text-purple-400 font-bold">TTS Engine</span>
               </div>
             </div>
 
