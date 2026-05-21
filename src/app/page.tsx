@@ -106,7 +106,7 @@ export default function Home() {
   // 'landing' | 'auth_sheet' | 'generating' | 'paywall' | 'player'
   const [currentScreen, setCurrentScreen] = useState<
     "landing" | "auth_sheet" | "generating" | "paywall" | "player"
-  >("landing");
+  >("player");
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showPromptDrawer, setShowPromptDrawer] = useState(false);
@@ -206,7 +206,7 @@ export default function Home() {
             setCreatedEpisodeId(pendingEpisode.id);
             setPendingScenes(pendingEpisode.scenes);
             setIsGenerating(true);
-            setCurrentScreen("generating");
+            setCurrentScreen("player");
             resumeGeneration(pendingEpisode.id, savedUserId || "", pendingEpisode.scenes);
           } else {
             setSelectedEpisode(data.episodes[0]);
@@ -380,7 +380,7 @@ export default function Home() {
     startGenerationFlow(activePrompt);
   };
 
-  // Start Screen 3 (loader) & backend insert
+  // Start Screen 3 (loader bypassed) & backend insert
   const startGenerationFlow = async (activePrompt?: string) => {
     const finalPrompt = activePrompt || prompt;
     if (!finalPrompt.trim()) return;
@@ -390,27 +390,7 @@ export default function Home() {
       setTokenBalance(10);
     }
 
-    setCurrentScreen("generating");
-    setSimulationProgress(0);
-    setLoaderText("Подключение к GPU...");
     setIsGenerating(true);
-    setGenStep("script");
-
-    // Animate fake progress to 89% while fetching metadata
-    const loaderInterval = setInterval(() => {
-      setSimulationProgress((prev) => {
-        if (prev < 89) {
-          // Change loader text based on progress
-          if (prev > 30 && prev < 60) setLoaderText("Рендер кадров...");
-          if (prev >= 60) setLoaderText("Генерация озвучки ИИ...");
-          return prev + Math.floor(Math.random() * 8) + 2;
-        } else {
-          clearInterval(loaderInterval);
-          setCurrentScreen("paywall"); // Halt at 89% and trigger Paywall Screen 3 State 2
-          return 89;
-        }
-      });
-    }, 200);
 
     try {
       // 1. Create episode record in DB (generates script outline, costs 1 token)
@@ -426,14 +406,23 @@ export default function Home() {
       }
 
       const data = await response.json();
-      setCreatedEpisodeId(data.episodeId);
-      setPendingScenes(data.scenes);
+      const episodeId = data.episodeId;
+      const scenes = data.scenes;
+
+      setCreatedEpisodeId(episodeId);
+      setPendingScenes(scenes);
       setTokenBalance((prev) => Math.max(0, prev - 1));
       setPrompt("");
       setShowPromptDrawer(false);
+
+      // 2. Generate scenes in the background immediately (bypassing loader & paywall views)
+      await resumeGeneration(episodeId, userId, scenes);
+
+      // 3. Switch directly to player
+      setCurrentScreen("player");
+      setIsGenerating(false);
     } catch (err) {
       console.error(err);
-      clearInterval(loaderInterval);
       alert(`Ошибка инициализации: ${err instanceof Error ? err.message : String(err)}`);
       setCurrentScreen("landing");
       setIsGenerating(false);
@@ -807,15 +796,24 @@ export default function Home() {
                   {/* CTA generate button */}
                   <button 
                     onClick={() => {
+                      if (isGenerating) return;
                       if (!prompt) {
                         setShowPromptDrawer(true);
                       } else {
                         handleStartGeneration();
                       }
                     }}
-                    className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-wider text-black bg-white select-none active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.4)] animate-pulse-slow cursor-pointer"
+                    disabled={isGenerating}
+                    className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-wider text-black bg-white select-none active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.4)] disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                   >
-                    Сгенерировать продолжение
+                    {isGenerating ? (
+                      <>
+                        <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
+                        Генерируем серию...
+                      </>
+                    ) : (
+                      "Сгенерировать продолжение"
+                    )}
                   </button>
                 </div>
               </div>
@@ -843,10 +841,17 @@ export default function Home() {
                     </button>
                     <button 
                       onClick={() => handleStartGeneration()}
-                      disabled={!prompt.trim()}
-                      className="flex-1 py-3 bg-white text-black rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                      disabled={!prompt.trim() || isGenerating}
+                      className="flex-1 py-3 bg-white text-black rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2"
                     >
-                      Создать
+                      {isGenerating ? (
+                        <>
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
+                          Рендер...
+                        </>
+                      ) : (
+                        "Создать"
+                      )}
                     </button>
                   </div>
                 </div>
@@ -862,7 +867,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-zinc-950 pointer-events-none opacity-40 z-0"></div>
                 
                 {/* Sheet Backdrop Blur Overlay */}
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10" onClick={() => setCurrentScreen("landing")}></div>
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10" onClick={() => setCurrentScreen("player")}></div>
                 
                 {/* Bottom Sheet Modal */}
                 <div className="absolute bottom-0 inset-x-0 bg-zinc-900/95 backdrop-blur-2xl border-t border-zinc-800 rounded-t-[2.5rem] p-6 z-20 flex flex-col gap-6 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] animate-slide-up">
@@ -927,7 +932,7 @@ export default function Home() {
 
                   {/* Cancel Button */}
                   <button 
-                    onClick={() => setCurrentScreen("landing")}
+                    onClick={() => setCurrentScreen("player")}
                     className="text-zinc-500 hover:text-zinc-400 text-xs font-semibold text-center mt-1 cursor-pointer transition-colors"
                   >
                     Вернуться назад
@@ -1109,7 +1114,7 @@ export default function Home() {
                   {!isPlaying && !showChatController && (
                     <div className="absolute inset-0 bg-black/30 z-20 flex items-center justify-center pointer-events-none animate-fade-in">
                       <div className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
-                        <span className="text-xl pl-1">▶️</span>
+                        <Icons.Play className="w-5 h-5 fill-white text-white translate-x-0.5" />
                       </div>
                     </div>
                   )}
@@ -1162,13 +1167,13 @@ export default function Home() {
                       {/* New story button */}
                       <button 
                         onClick={() => {
-                          setIsPlaying(false);
-                          setCurrentScreen("landing");
+                          setPrompt("");
+                          setShowPromptDrawer(true);
                         }}
                         className="text-white/90 hover:opacity-85 active:scale-95 transition-all p-1"
-                        title="Новый сериал"
+                        title="Создать сериал"
                       >
-                        <Icons.Sparkles className="w-5 h-5 drop-shadow-[0_2px_5px_rgba(0,0,0,0.5)]" />
+                        <Icons.Sparkles className="w-5 h-5 drop-shadow-[0_2px_5px_rgba(0,0,0,0.5)] text-purple-400 fill-purple-400/20" />
                       </button>
                     </div>
                   </div>
@@ -1221,8 +1226,12 @@ export default function Home() {
                       {getActiveChips().map((chipText, cIdx) => (
                         <button
                           key={cIdx}
-                          onClick={(e) => handleChatSubmit(e, chipText)}
-                          className="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold px-3.5 py-2 rounded-full whitespace-nowrap transition-colors cursor-pointer select-none active:scale-95"
+                          onClick={(e) => {
+                            if (isGenerating) return;
+                            handleChatSubmit(e, chipText);
+                          }}
+                          disabled={isGenerating}
+                          className="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold px-3.5 py-2 rounded-full whitespace-nowrap transition-colors cursor-pointer select-none active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {chipText}
                         </button>
@@ -1238,21 +1247,76 @@ export default function Home() {
                         type="text"
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Напиши свой вариант финала..."
-                        className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-[11px] text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition-colors"
+                        placeholder={isGenerating ? "Идет генерация новой серии..." : "Напиши свой вариант финала..."}
+                        disabled={isGenerating}
+                        className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-[11px] text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <button 
                         type="submit"
-                        disabled={!chatInput.trim()}
+                        disabled={!chatInput.trim() || isGenerating}
                         className="h-10 w-10 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors cursor-pointer active:scale-95 flex-shrink-0"
                       >
-                        <Icons.ArrowRight className="w-4 h-4" />
+                        {isGenerating ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        ) : (
+                          <Icons.ArrowRight className="w-4 h-4" />
+                        )}
                       </button>
                     </form>
 
                   </div>
                 </div>
 
+              </div>
+            )}
+
+            {currentScreen === "player" && !selectedEpisode && (
+              <div className="h-full w-full bg-black relative flex flex-col justify-center items-center px-6 text-center animate-fade-in">
+                {/* Background ambient neon glow */}
+                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-48 h-48 bg-purple-600/10 rounded-full blur-[80px] pointer-events-none"></div>
+                <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-pink-600/10 rounded-full blur-[60px] pointer-events-none"></div>
+
+                {/* Glassmorphic card */}
+                <div className="w-full bg-zinc-950/40 border border-zinc-900 backdrop-blur-xl rounded-3xl p-6.5 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center border border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.3)] mx-auto animate-pulse-slow">
+                    <Icons.Sparkles className="w-8 h-8 text-white" />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <h3 className="text-base font-black text-white uppercase tracking-wider">Создайте свой первый сериал</h3>
+                    <p className="text-[11px] text-zinc-500 leading-relaxed">
+                      У вас пока нет активных историй. Введите любую идею или выберите один из шаблонов, чтобы сгенерировать уникальный интерактивный сериал с ИИ-озвучкой и кадрами.
+                    </p>
+                  </div>
+
+                  {/* Preset chips inside empty state dashboard */}
+                  <div className="flex flex-wrap gap-2 justify-center py-2">
+                    {PRESET_PROMPTS.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setPrompt(item.prompt);
+                          setShowPromptDrawer(true);
+                        }}
+                        className="bg-zinc-900/50 hover:bg-zinc-900/80 border border-zinc-800 text-[10px] text-zinc-300 font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+                      >
+                        <span>{item.emoji}</span>
+                        {item.title}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      setPrompt("");
+                      setShowPromptDrawer(true);
+                    }}
+                    className="w-full py-3.5 bg-white text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.01] active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2"
+                  >
+                    <Icons.Sparkles className="w-4 h-4 text-purple-600 fill-purple-600" />
+                    Начать генерацию
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1364,11 +1428,12 @@ export default function Home() {
                     <button 
                       onClick={() => {
                         setSidebarOpen(false);
-                        setCurrentScreen("landing");
+                        setPrompt("");
+                        setShowPromptDrawer(true);
                       }}
                       className="text-zinc-400 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                     >
-                      <span>🏠</span> На главную
+                      <Icons.Sparkles className="w-4 h-4 text-purple-400" /> Создать новый
                     </button>
                     
                     <button 
@@ -1376,7 +1441,7 @@ export default function Home() {
                         await supabase.auth.signOut();
                         setIsRegistered(true);
                         setSidebarOpen(false);
-                        setCurrentScreen("landing");
+                        setCurrentScreen("player");
                       }}
                       className="text-red-500/80 hover:text-red-400 text-[10px] font-bold uppercase transition-colors cursor-pointer"
                     >
@@ -1426,12 +1491,12 @@ export default function Home() {
           </div>
 
           <div className="flex gap-2">
-            {currentScreen !== "landing" && (
+            {currentScreen === "player" && (
               <button 
-                onClick={() => { setCurrentScreen("landing"); setIsPlaying(false); }}
-                className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-bold py-3 rounded-xl border border-zinc-800 transition-all cursor-pointer active:scale-95"
+                onClick={() => { setPrompt(""); setShowPromptDrawer(true); }}
+                className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white text-[11px] font-bold py-3 rounded-xl border border-zinc-800 transition-all cursor-pointer active:scale-95 flex items-center justify-center gap-1.5"
               >
-                ◀️ Назад
+                <Icons.Sparkles className="w-3.5 h-3.5 text-purple-400" /> Создать новый
               </button>
             )}
             
