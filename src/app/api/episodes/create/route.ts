@@ -119,6 +119,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     userId = body.userId;
     const prompt = body.prompt;
+    let showId = body.showId;
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -155,10 +156,28 @@ export async function POST(request: Request) {
       scenes: script
     };
 
+    // Create a new show if one wasn't provided
+    if (!showId) {
+      const showTitle = (prompt || 'Новый сериал').substring(0, 30) + ((prompt || '').length > 30 ? '...' : '');
+      const { data: newShow, error: showError } = await supabase
+        .from('shows')
+        .insert({
+          user_id: userId,
+          title: showTitle
+        })
+        .select()
+        .single();
+        
+      if (!showError && newShow) {
+        showId = newShow.id;
+      }
+    }
+
     const { data: episode, error: epError } = await supabase
       .from('episodes')
       .insert({
         user_id: userId,
+        show_id: showId,
         status: 'pending',
         assets_json: initialAssets
       })

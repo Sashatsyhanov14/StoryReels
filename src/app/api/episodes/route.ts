@@ -17,13 +17,20 @@ export async function GET(request: Request) {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const { data: shows, error: showsError } = await supabase
+      .from('shows')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error || showsError) {
+      return NextResponse.json({ error: error?.message || showsError?.message }, { status: 500 });
     }
 
     interface DatabaseEpisode {
       id: string;
       user_id: string;
+      show_id?: string;
       status: 'pending' | 'ready' | 'failed';
       assets_json: unknown;
       created_at: string;
@@ -70,11 +77,12 @@ export async function GET(request: Request) {
         createdAt: new Date(ep.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         scenes: scenes,
         progress,
-        step
+        step,
+        showId: ep.show_id
       };
     });
 
-    return NextResponse.json({ episodes: formattedEpisodes });
+    return NextResponse.json({ shows: shows || [], episodes: formattedEpisodes });
   } catch (error) {
     console.error('Fetch episodes error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -24,6 +24,13 @@ interface Episode {
   createdAt: string;
   progress?: number;
   step?: "idle" | "script" | "keyframes" | "voiceover" | "compiling";
+  showId?: string;
+}
+
+interface Show {
+  id: string;
+  title: string;
+  created_at: string;
 }
 
 const PRESET_PROMPTS = [
@@ -99,6 +106,8 @@ export default function Home() {
   const [userId, setUserId] = useState("");
   const [tokenBalance, setTokenBalance] = useState(5);
   const [episodes, setEpisodes] = useState<Episode[]>(INITIAL_EPISODES);
+  const [shows, setShows] = useState<Show[]>([]);
+  const [activeShowId, setActiveShowId] = useState<string | null>(null);
   const [isRegistered, setIsRegistered] = useState(true);
   const [email, setEmail] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -199,6 +208,11 @@ export default function Home() {
       try {
         const response = await fetch(`/api/episodes?userId=${savedUserId}`);
         const data = await response.json();
+        
+        if (data.shows) {
+          setShows(data.shows);
+        }
+
         if (data.episodes && data.episodes.length > 0) {
           setEpisodes(data.episodes);
           const pendingEpisode = data.episodes.find((ep: Episode) => ep.status === "pending");
@@ -397,7 +411,7 @@ export default function Home() {
       const response = await fetch("/api/episodes/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, prompt: finalPrompt }),
+        body: JSON.stringify({ userId, prompt: finalPrompt, showId: activeShowId }),
       });
 
       if (!response.ok) {
@@ -1355,52 +1369,138 @@ export default function Home() {
 
                   {/* Series List (vertical scroll) */}
                   <div className="flex-grow overflow-y-auto px-4 py-4 flex flex-col gap-3 scrollbar-none">
-                    <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest pl-1 font-bold">
-                      Моя библиотека
-                    </h4>
+                    <div className="flex justify-between items-center pl-1 mb-1">
+                      <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest font-bold">
+                        {activeShowId ? "Серии" : "Мои сериалы"}
+                      </h4>
+                      {activeShowId && (
+                        <button onClick={() => setActiveShowId(null)} className="text-[9px] text-purple-400 hover:text-purple-300 font-bold uppercase tracking-widest">
+                          &larr; Назад
+                        </button>
+                      )}
+                    </div>
 
-                    {episodes.map((ep) => (
-                      <button
-                        key={ep.id}
-                        onClick={() => {
-                          setSelectedEpisode(ep);
-                          setActiveSceneIndex(0);
-                          setShowChatController(false);
-                          setIsPlaying(false);
-                          setSidebarOpen(false);
-                          setCurrentScreen("player");
-                        }}
-                        className={`flex gap-3 text-left rounded-xl p-2.5 transition-all border ${
-                          selectedEpisode?.id === ep.id
-                            ? "bg-purple-950/20 border-purple-500/35"
-                            : "border-transparent hover:bg-zinc-900/40 hover:border-zinc-900"
-                        }`}
-                      >
-                        {/* Thumbnail image or placeholder */}
-                        <div className="h-12 w-12 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                          {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img 
-                              src={ep.scenes[0].imageUrl} 
-                              alt="" 
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-xs">🎞️</span>
+                    {activeShowId ? (
+                      episodes.filter(ep => ep.showId === activeShowId).length === 0 ? (
+                        <div className="text-center py-6 text-zinc-600 text-[10px]">Нет серий</div>
+                      ) : (
+                        episodes.filter(ep => ep.showId === activeShowId).map((ep) => (
+                          <button
+                            key={ep.id}
+                            onClick={() => {
+                              setSelectedEpisode(ep);
+                              setActiveSceneIndex(0);
+                              setShowChatController(false);
+                              setIsPlaying(false);
+                              setSidebarOpen(false);
+                              setCurrentScreen("player");
+                            }}
+                            className={`flex gap-3 text-left rounded-xl p-2.5 transition-all border ${
+                              selectedEpisode?.id === ep.id
+                                ? "bg-purple-950/20 border-purple-500/35"
+                                : "border-transparent hover:bg-zinc-900/40 hover:border-zinc-900"
+                            }`}
+                          >
+                            <div className="h-12 w-12 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                              {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img 
+                                  src={ep.scenes[0].imageUrl} 
+                                  alt="" 
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-xs">🎞️</span>
+                              )}
+                            </div>
+                            <div className="flex flex-col justify-center overflow-hidden">
+                              <h5 className="text-[11px] font-bold text-white truncate max-w-[150px]">
+                                {ep.title}
+                              </h5>
+                              <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
+                                {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
+                              </span>
+                            </div>
+                          </button>
+                        ))
+                      )
+                    ) : (
+                      shows.length === 0 && episodes.length === 0 ? (
+                        <div className="text-center py-6 text-zinc-600 text-[10px]">Библиотека пуста</div>
+                      ) : (
+                        <>
+                          {shows.map((show) => {
+                            const showEpisodes = episodes.filter(e => e.showId === show.id);
+                            return (
+                              <button
+                                key={show.id}
+                                onClick={() => setActiveShowId(show.id)}
+                                className="flex gap-3 text-left rounded-xl p-2.5 transition-all border border-transparent hover:bg-zinc-900/40 hover:border-zinc-900"
+                              >
+                                <div className="h-12 w-12 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center text-xl">
+                                  📺
+                                </div>
+                                <div className="flex flex-col justify-center overflow-hidden">
+                                  <h5 className="text-[11px] font-bold text-white truncate max-w-[150px]">
+                                    {show.title}
+                                  </h5>
+                                  <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
+                                    {showEpisodes.length} серий
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+
+                          {episodes.filter(ep => !ep.showId).length > 0 && (
+                            <div className="mt-3">
+                              <h5 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest pl-1 mb-1 font-bold">Одиночные видео</h5>
+                              <div className="flex flex-col gap-3">
+                                {episodes.filter(ep => !ep.showId).map((ep) => (
+                                  <button
+                                    key={ep.id}
+                                    onClick={() => {
+                                      setSelectedEpisode(ep);
+                                      setActiveSceneIndex(0);
+                                      setShowChatController(false);
+                                      setIsPlaying(false);
+                                      setSidebarOpen(false);
+                                      setCurrentScreen("player");
+                                    }}
+                                    className={`flex gap-3 text-left rounded-xl p-2.5 transition-all border ${
+                                      selectedEpisode?.id === ep.id
+                                        ? "bg-purple-950/20 border-purple-500/35"
+                                        : "border-transparent hover:bg-zinc-900/40 hover:border-zinc-900"
+                                    }`}
+                                  >
+                                    <div className="h-12 w-12 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                      {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
+                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                        <img 
+                                          src={ep.scenes[0].imageUrl} 
+                                          alt="" 
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        <span className="text-xs">🎞️</span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col justify-center overflow-hidden">
+                                      <h5 className="text-[11px] font-bold text-white truncate max-w-[150px]">
+                                        {ep.title}
+                                      </h5>
+                                      <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
+                                        {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
+                                      </span>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           )}
-                        </div>
-
-                        {/* Title & Stats */}
-                        <div className="flex flex-col justify-center overflow-hidden">
-                          <h5 className="text-[11px] font-bold text-white truncate max-w-[150px]">
-                            {ep.title}
-                          </h5>
-                          <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
-                            {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                        </>
+                      )
+                    )}
                   </div>
 
                   {/* Sidebar Footer */}
@@ -1470,55 +1570,135 @@ export default function Home() {
             <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-3 scrollbar-none">
               <div className="flex justify-between items-center px-1 mb-1">
                 <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-                  Моя библиотека
+                  {activeShowId ? "Серии" : "Мои сериалы"}
                 </h4>
-                <span className="text-[10px] bg-purple-950/40 text-purple-400 px-2 py-0.5 rounded-full font-mono border border-purple-500/25">
-                  {episodes.length}
-                </span>
+                {activeShowId ? (
+                  <button onClick={() => setActiveShowId(null)} className="text-[10px] text-purple-400 hover:text-purple-300">
+                    &larr; Назад
+                  </button>
+                ) : (
+                  <span className="text-[10px] bg-purple-950/40 text-purple-400 px-2 py-0.5 rounded-full font-mono border border-purple-500/25">
+                    {shows.length}
+                  </span>
+                )}
               </div>
 
-              {episodes.length === 0 ? (
-                <div className="text-center py-8 text-zinc-600 text-xs">
-                  Библиотека пуста
-                </div>
+              {activeShowId ? (
+                episodes.filter(ep => ep.showId === activeShowId).length === 0 ? (
+                  <div className="text-center py-8 text-zinc-600 text-xs">Нет серий</div>
+                ) : (
+                  episodes.filter(ep => ep.showId === activeShowId).map((ep) => (
+                    <button
+                      key={ep.id}
+                      onClick={() => {
+                        setSelectedEpisode(ep);
+                        setActiveSceneIndex(0);
+                        setShowChatController(false);
+                        setIsPlaying(false);
+                      }}
+                      className={`flex gap-3 text-left rounded-2xl p-3 transition-all border ${
+                        selectedEpisode?.id === ep.id
+                          ? "bg-purple-950/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.05)]"
+                          : "border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
+                      }`}
+                    >
+                      <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner">
+                        {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img 
+                            src={ep.scenes[0].imageUrl} 
+                            alt="" 
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <span className="text-lg">🎞️</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col justify-center overflow-hidden">
+                        <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
+                          {ep.title}
+                        </h5>
+                        <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
+                          {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )
               ) : (
-                episodes.map((ep) => (
-                  <button
-                    key={ep.id}
-                    onClick={() => {
-                      setSelectedEpisode(ep);
-                      setActiveSceneIndex(0);
-                      setShowChatController(false);
-                      setIsPlaying(false);
-                    }}
-                    className={`flex gap-3 text-left rounded-2xl p-3 transition-all border ${
-                      selectedEpisode?.id === ep.id
-                        ? "bg-purple-950/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.05)]"
-                        : "border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
-                    }`}
-                  >
-                    <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner">
-                      {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img 
-                          src={ep.scenes[0].imageUrl} 
-                          alt="" 
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-lg">🎞️</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col justify-center overflow-hidden">
-                      <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
-                        {ep.title}
-                      </h5>
-                      <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
-                        {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
-                      </span>
-                    </div>
-                  </button>
-                ))
+                shows.length === 0 && episodes.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-600 text-xs">Библиотека пуста</div>
+                ) : (
+                  <>
+                    {shows.map((show) => {
+                      const showEpisodes = episodes.filter(e => e.showId === show.id);
+                      return (
+                        <button
+                          key={show.id}
+                          onClick={() => setActiveShowId(show.id)}
+                          className="flex gap-3 text-left rounded-2xl p-3 transition-all border border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
+                        >
+                          <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner text-2xl">
+                            📺
+                          </div>
+                          <div className="flex flex-col justify-center overflow-hidden">
+                            <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
+                              {show.title}
+                            </h5>
+                            <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
+                              {showEpisodes.length} серий
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+
+                    {episodes.filter(ep => !ep.showId).length > 0 && (
+                      <div className="mt-4">
+                        <h5 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest px-1 mb-2">Одиночные видео</h5>
+                        <div className="flex flex-col gap-3">
+                          {episodes.filter(ep => !ep.showId).map((ep) => (
+                            <button
+                              key={ep.id}
+                              onClick={() => {
+                                setSelectedEpisode(ep);
+                                setActiveSceneIndex(0);
+                                setShowChatController(false);
+                                setIsPlaying(false);
+                              }}
+                              className={`flex gap-3 text-left rounded-2xl p-3 transition-all border ${
+                                selectedEpisode?.id === ep.id
+                                  ? "bg-purple-950/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.05)]"
+                                  : "border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
+                              }`}
+                            >
+                              <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner">
+                                {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img 
+                                    src={ep.scenes[0].imageUrl} 
+                                    alt="" 
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-lg">🎞️</span>
+                                )}
+                              </div>
+                              <div className="flex flex-col justify-center overflow-hidden">
+                                <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
+                                  {ep.title}
+                                </h5>
+                                <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
+                                  {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
+                                </span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
               )}
             </div>
 
