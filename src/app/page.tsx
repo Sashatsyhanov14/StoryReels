@@ -365,11 +365,24 @@ export default function Home() {
       });
 
       if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Не удалось запустить создание эпизода");
+        const text = await response.text().catch(() => "");
+        let errorMessage = "Не удалось запустить создание эпизода";
+        try {
+          const errData = JSON.parse(text);
+          errorMessage = errData.error || errorMessage;
+        } catch {
+          if (text) errorMessage = text;
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      const responseText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (err) {
+        throw new Error(`Невалидный ответ сервера (ожидался JSON): ${responseText.substring(0, 150)}...`);
+      }
       const episodeId = data.episodeId;
       const scenes = data.scenes;
 
@@ -470,11 +483,24 @@ export default function Home() {
         });
 
         if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || `Ошибка при генерации сцены ${i + 1}`);
+          const text = await response.text().catch(() => "");
+          let errorMessage = `Ошибка при генерации сцены ${i + 1}`;
+          try {
+            const errData = JSON.parse(text);
+            errorMessage = errData.error || errorMessage;
+          } catch {
+            if (text) errorMessage = text;
+          }
+          throw new Error(errorMessage);
         }
 
-        const data = await response.json();
+        const responseText = await response.text();
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (err) {
+          throw new Error(`Невалидный ответ сцены ${i + 1} (ожидался JSON): ${responseText.substring(0, 150)}...`);
+        }
 
         // Update the selected episode's scenes with the generated scene data
         if (data.generatedScene && !data.skipped) {
