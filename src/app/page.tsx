@@ -128,7 +128,7 @@ export default function Home() {
   const [genStep, setGenStep] = useState<"idle" | "script" | "keyframes" | "voiceover" | "compiling">("idle");
   const [generationProgress, setGenerationProgress] = useState(0);
   const [createdEpisodeId, setCreatedEpisodeId] = useState<string | null>(null);
-  const [pendingScenes, setPendingScenes] = useState<any[]>([]);
+  const [pendingScenes, setPendingScenes] = useState<Scene[]>([]);
 
   // Simulation loader states
   const [loaderText, setLoaderText] = useState("Подключение к GPU...");
@@ -146,6 +146,7 @@ export default function Home() {
   ]);
 
   const advanceToNextSceneRef = useRef<() => void>(() => {});
+  const resumeGenerationRef = useRef<((episodeId: string, userId: string, scenes: Scene[]) => Promise<void>) | undefined>(undefined);
 
   // Active scene timer for progress bars
   const [sceneProgress, setSceneProgress] = useState(0);
@@ -195,7 +196,8 @@ export default function Home() {
       savedUserId = uuidv4();
       localStorage.setItem("storyreels_user_id", savedUserId);
     }
-    setUserId(savedUserId);
+    // Use queueMicrotask to avoid synchronous setState in effect body
+    queueMicrotask(() => setUserId(savedUserId));
 
     const syncUser = async () => {
       try {
@@ -231,7 +233,7 @@ export default function Home() {
             setPendingScenes(pendingEpisode.scenes);
             setIsGenerating(true);
             setCurrentScreen("player");
-            resumeGeneration(pendingEpisode.id, savedUserId || "", pendingEpisode.scenes);
+            resumeGenerationRef.current?.(pendingEpisode.id, savedUserId || "", pendingEpisode.scenes);
           } else {
             setSelectedEpisode(data.episodes[0]);
           }
@@ -276,7 +278,7 @@ export default function Home() {
     try {
       setAuthLoading(true);
       await supabase.auth.signInWithOAuth({
-        provider: provider as any,
+        provider: provider as "google",
         options: {
           redirectTo: typeof window !== "undefined" ? window.location.origin : "",
         },
@@ -438,100 +440,102 @@ export default function Home() {
     }, 1500);
   };
 
-  // Actual scene rendering via generation loop
-  const resumeGeneration = async (episodeId: string, currentUserId: string, scenes: any[]) => {
-    let startIdx = 0;
-    for (let i = 0; i < scenes.length; i++) {
-      const hasImage = scenes[i].imageUrl && scenes[i].imageUrl !== "";
-      const hasAudio = scenes[i].audioUrl && scenes[i].audioUrl !== "" && scenes[i].audioUrl !== "#";
-      if (!hasImage || !hasAudio) {
-        startIdx = i;
-        break;
-      }
-    }
-
+  // Actual scene rendering — sequential, one scene at a time
+  const resumeGeneration = async (episodeId: string, currentUserId: string, scenes: Scene[]) => {
     try {
-      const batchSize = 1;
-      const pendingIndices: number[] = [];
-      for (let i = startIdx; i < scenes.length; i++) {
-        pendingIndices.push(i);
-      }
+      const totalScenes = scenes.length;
 
-      for (let k = 0; k < pendingIndices.length; k += batchSize) {
-        const batch = pendingIndices.slice(k, k + batchSize);
-        const currentProgress = Math.min(98, Math.round(89 + (k / pendingIndices.length) * 10));
+      for (let i = 0; i < totalScenes; i++) {
+        // Update progress UI
+        const currentProgress = Math.min(98, Math.round((i / totalScenes) * 100));
         setSimulationProgress(currentProgress);
-        
+
+        // Generate one scene at a time
         const response = await fetch("/api/episodes/generate-scene", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ episodeId, sceneIndices: batch }),
+          body: JSON.stringify({ episodeId, sceneIndex: i }),
         });
-        
+
         if (!response.ok) {
-          throw new Error(`Ошибка при рендере сцен: ${batch.map((idx) => idx + 1).join(", ")}`);
-        }
-        
-        // Live sync: fetch updated episode state and set it
-        const syncResponse = await fetch(`/api/episodes?userId=${currentUserId}`);
-        if (syncResponse.ok) {
-          const syncData = await syncResponse.json();
-          const episodesList: Episode[] = syncData.episodes || [];
-          setEpisodes(episodesList);
-          
-          const updatedEp = episodesList.find((ep) => ep.id === episodeId);
-          if (updatedEp) {
-            setSelectedEpisode(updatedEp);
-          }
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Ошибка при генерации сцены ${i + 1}`);
         }
 
         const data = await response.json();
+
+        // Update the selected episode's scenes with the generated scene data
+        if (data.generatedScene && !data.skipped) {
+          setSelectedEpisode((prev) => {
+            if (!prev || prev.id !== episodeId) return prev;
+            const updatedScenes = [...prev.scenes];
+            updatedScenes[i] = {
+              ...updatedScenes[i],
+              ...data.generatedScene,
+            };
+            return { ...prev, scenes: updatedScenes };
+          });
+        }
+
+        setSimulationProgress(data.progress || currentProgress);
+
+        // If all scenes are done, break early
         if (data.isCompleted) {
           break;
         }
       }
 
-      // Final Sync and retrieve the ready episode
-      const response = await fetch(`/api/episodes?userId=${currentUserId}`);
-      if (response.ok) {
-        const data = await response.json();
-        const episodesList: Episode[] = data.episodes || [];
+      // Final sync: fetch the complete episode state from DB
+      const syncResponse = await fetch(`/api/episodes?userId=${currentUserId}`);
+      if (syncResponse.ok) {
+        const syncData = await syncResponse.json();
+        const episodesList: Episode[] = syncData.episodes || [];
         setEpisodes(episodesList);
-        
+
         const finishedEp = episodesList.find((ep) => ep.id === episodeId);
         if (finishedEp) {
           setSelectedEpisode(finishedEp);
         }
       }
+
+      setSimulationProgress(100);
       setIsGenerating(false);
       setCurrentScreen("player");
       setIsPlaying(true);
       setShowChatController(false);
       setActiveSceneIndex(0);
     } catch (err) {
-      console.error("Batch rendering failed:", err);
-      
-      // Set status to failed in DB
-      await fetch(`/api/episodes/fail`, {
+      console.error("Scene generation failed:", err);
+
+      // Mark episode as failed in DB
+      await fetch("/api/episodes/fail", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ episodeId }),
       }).catch(console.error);
 
-      // Refresh episodes
-      const response = await fetch(`/api/episodes?userId=${currentUserId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setEpisodes(data.episodes || []);
-        
-        const failedEp = (data.episodes || []).find((ep: any) => ep.id === episodeId);
-        if (failedEp) {
-          setSelectedEpisode(failedEp);
+      // Refresh episodes list
+      try {
+        const response = await fetch(`/api/episodes?userId=${currentUserId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setEpisodes(data.episodes || []);
+
+          const failedEp = (data.episodes || []).find((ep: Episode) => ep.id === episodeId);
+          if (failedEp) {
+            setSelectedEpisode(failedEp);
+          }
         }
-      }
+      } catch { /* ignore sync error */ }
+
       setIsGenerating(false);
     }
   };
+
+  // Keep ref in sync so the mount-effect can call this function
+  useEffect(() => {
+    resumeGenerationRef.current = resumeGeneration;
+  });
 
   const handleTopUp = async () => {
     try {
@@ -609,7 +613,7 @@ export default function Home() {
   };
 
   // Screen click handles — toggle play/pause (video-like behavior)
-  const handlePlayerScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handlePlayerScreenClick = (_e: React.MouseEvent<HTMLDivElement>) => {
     // Standard video behavior: tap anywhere on the video toggles play/pause
     if (showChatController) return;
     setIsPlaying((prev) => !prev);

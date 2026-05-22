@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30; // LLM script generation may take up to 30s
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface SceneData {
   scene_text: string;
@@ -11,19 +14,41 @@ interface SceneData {
   transition: string;
 }
 
-// Real Polza.ai LLM generation using openai/gpt-4o-mini
+interface EpisodeAssets {
+  progress: number;
+  step: 'script' | 'keyframes' | 'voiceover' | 'compiling' | 'done';
+  userPrompt: string;
+  scenes: SceneData[];
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const SCENE_COUNT = 12;
+
+const VALID_CAMERA_EFFECTS = [
+  'zoom-in-fast', 'zoom-out-slow', 'camera-shake',
+  'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal',
+] as const;
+
+const VALID_TRANSITIONS = [
+  'fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade',
+] as const;
+
+// ─── LLM Script Generation ─────────────────────────────────────────────────
+
+/**
+ * Generates a storyboard script of SCENE_COUNT scenes via Polza.ai (gpt-4o-mini).
+ * Returns validated and sanitized scene data.
+ */
 async function generateScript(userPrompt: string): Promise<SceneData[]> {
   const apiKey = process.env.POLZA_API_KEY;
+
   if (!apiKey) {
-    console.warn('POLZA_API_KEY is not defined, using mock script.');
-    return Array.from({ length: 12 }, (_, i) => ({
-      scene_text: `Описание действия и визуала для кадра ${i + 1}`,
-      image_prompt: `16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, maintaining the main character design, based on ${userPrompt}`,
-      voice_text: `Сцена ${i + 1}: Глубокий закадровый текст на русском. Сюжет для "${userPrompt}"`,
-      camera_effect: i % 2 === 0 ? 'pan-diagonal' : 'zoom-in-fast',
-      transition: i % 2 === 0 ? 'fade-to-black' : 'glitch-cut'
-    }));
+    console.warn('[generateScript] POLZA_API_KEY missing — using mock script');
+    return createMockScript(userPrompt);
   }
+
+  console.log(`[generateScript] Requesting ${SCENE_COUNT}-scene script for: "${userPrompt.substring(0, 60)}..."`);
 
   const response = await fetch('https://polza.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -34,23 +59,64 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
     body: JSON.stringify({
       model: 'openai/gpt-4o-mini',
       messages: [
-        {
-          role: 'system',
-          content: `Ты — режиссер и сценарист вирусных кинематографичных Reels/TikTok видео (в стиле крутых эдитов из CapCut). Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал, который ощущается как ОДНО ЦЕЛЬНОЕ непрерывное видео из 12 кадров.
+        { role: 'system', content: buildSystemPrompt() },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '(unreadable)');
+    throw new Error(`Polza LLM HTTP ${response.status}: ${errorText.substring(0, 300)}`);
+  }
+
+  const result = await response.json();
+  const content = result?.choices?.[0]?.message?.content;
+
+  if (!content || typeof content !== 'string') {
+    throw new Error('LLM response missing content');
+  }
+
+  const scenes = parseAndValidateScenes(content);
+  console.log(`[generateScript] ✓ Parsed ${scenes.length} scenes`);
+  return scenes;
+}
+
+/**
+ * Creates a deterministic mock script for development/testing.
+ */
+function createMockScript(userPrompt: string): SceneData[] {
+  return Array.from({ length: SCENE_COUNT }, (_, i) => ({
+    scene_text: `Описание действия и визуала для кадра ${i + 1}`,
+    image_prompt: `16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, scene from: ${userPrompt}`,
+    voice_text: `Сцена ${i + 1}: Глубокий закадровый текст на русском. Сюжет для "${userPrompt}"`,
+    camera_effect: VALID_CAMERA_EFFECTS[i % VALID_CAMERA_EFFECTS.length],
+    transition: VALID_TRANSITIONS[i % VALID_TRANSITIONS.length],
+  }));
+}
+
+/**
+ * Builds the system prompt for the LLM scriptwriter.
+ */
+function buildSystemPrompt(): string {
+  return `Ты — режиссер и сценарист вирусных кинематографичных Reels/TikTok видео (в стиле крутых эдитов из CapCut). Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал, который ощущается как ОДНО ЦЕЛЬНОЕ непрерывное видео из ${SCENE_COUNT} кадров.
 
 Стиль: СТРОГО 16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art. Все сцены должны выглядеть как кадры из одной ретро-игры на Super Nintendo.
 Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне. Эти кадры будут склеены в одно видео, поэтому визуальный стиль должен быть максимально консистентным. Каждый image_prompt ОБЯЗАТЕЛЬНО должен начинаться со слов: "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style".
 
 Правила драматургии и озвучки (CapCut style):
-Кадры 1-3: Мощный хук (hook), экспозиция, завязка. Закадровый голос должен интриговать с первой секунды.
-Кадры 4-9: Развитие сюжета, нарастание напряжения. Текст (voice_text) должен плавно перетекать из кадра в кадр, как единый монолог диктора, а не отдельные обрывки.
-Кадры 10-11: Пик конфликта, экшен, безысходность.
+Кадры 1-2: Мощный хук (hook), экспозиция, завязка. Закадровый голос должен интриговать с первой секунды.
+Кадры 3-5: Развитие сюжета, знакомство с миром и персонажами. Текст (voice_text) должен плавно перетекать из кадра в кадр, как единый монолог диктора.
+Кадры 6-8: Нарастание напряжения, усложнение конфликта. Визуал становится динамичнее.
+Кадры 9-10: Кульминация, пик конфликта, экшен.
+Кадр 11: Развязка или ложная развязка.
 Кадр 12: Клиффхэнгер или мощный вывод. Сцена обрывается на интригующем моменте.
 
-В полях camera_effect используй значения: 'zoom-in-fast', 'zoom-out-slow', 'camera-shake', 'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal'. Чередуй их логично для видео-монтажа.
-В полях transition используй: 'fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade'.
+В полях camera_effect используй значения: ${VALID_CAMERA_EFFECTS.map(e => `'${e}'`).join(', ')}. Чередуй их логично для видео-монтажа.
+В полях transition используй: ${VALID_TRANSITIONS.map(t => `'${t}'`).join(', ')}.
 
-Выдай ответ СТРОГО в формате JSON (массив из 12 объектов), без markdown-разметки:
+Выдай ответ СТРОГО в формате JSON (массив из ${SCENE_COUNT} объектов), без markdown-разметки:
 [
   {
     "frame": 1,
@@ -59,62 +125,69 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
     "voice_text": "Глубокий непрерывный закадровый текст на русском для TTS. Плотный сюжет, фраза может начаться здесь...",
     "camera_effect": "camera-shake",
     "transition": "cross-fade"
-  },
-  {
-    "frame": 2,
-    "scene_text": "Продолжение действия, описание визуальной обстановки для сценария",
-    "image_prompt": "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, [English description of the next scene]",
-    "voice_text": "...и логично продолжиться в следующем кадре, создавая эффект непрерывного аудио-потока.",
-    "camera_effect": "zoom-in-fast",
-    "transition": "glitch-cut"
   }
-]
-`
-        },
-        {
-          role: 'user',
-          content: userPrompt
-        }
-      ],
-      temperature: 0.7
-    })
-  });
+]`;
+}
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Polza Script Generation failed: ${response.status} - ${errorText}`);
+/**
+ * Parses the LLM JSON output and validates each scene has all required fields.
+ * Strips markdown wrappers, handles edge cases.
+ */
+function parseAndValidateScenes(rawContent: string): SceneData[] {
+  // Strip markdown code fences if present
+  const cleaned = rawContent
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/, '')
+    .trim();
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    // Attempt to extract JSON array from the content
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    if (match) {
+      parsed = JSON.parse(match[0]);
+    } else {
+      throw new Error('Could not parse LLM response as JSON');
+    }
   }
 
-  const result = await response.json();
-  const content = result.choices[0].message.content;
-  
-  // Clean potential markdown wrap
-  const cleanContent = content.trim().replace(/^```json\s*/, '').replace(/```$/, '');
-  const parsed = JSON.parse(cleanContent);
-  
-  const rawScenes = Array.isArray(parsed) ? parsed : (parsed.scenes || parsed.storyboard || []);
+  const parsedObj = parsed as Record<string, unknown>;
+  const rawScenes = Array.isArray(parsed)
+    ? parsed
+    : (Array.isArray(parsedObj?.scenes) ? parsedObj.scenes : null)
+      || (Array.isArray(parsedObj?.storyboard) ? parsedObj.storyboard : null)
+      || [];
+
   if (!Array.isArray(rawScenes) || rawScenes.length === 0) {
-    throw new Error('Invalid response structure from Polza script generation');
+    throw new Error('LLM response contains no scenes array');
   }
 
-  const transitions = ['fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade'];
-  const cameraEffects = ['zoom-in-fast', 'zoom-out-slow', 'camera-shake', 'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal'];
-
-  return rawScenes.slice(0, 12).map((scene: unknown, i) => {
-    const s = scene as Record<string, unknown>;
+  return rawScenes.slice(0, SCENE_COUNT).map((rawItem: unknown, i: number): SceneData => {
+    const raw = rawItem as Record<string, unknown>;
     return {
-      scene_text: typeof s.scene_text === 'string' ? s.scene_text : `Сцена ${i + 1}`,
-      image_prompt: typeof s.image_prompt === 'string' ? s.image_prompt : '16-bit pixel art style, retro JRPG aesthetic',
-      voice_text: typeof s.voice_text === 'string' ? s.voice_text : '',
-      camera_effect: typeof s.camera_effect === 'string' && cameraEffects.includes(s.camera_effect)
-        ? s.camera_effect
-        : cameraEffects[i % cameraEffects.length],
-      transition: typeof s.transition === 'string' && transitions.includes(s.transition)
-        ? s.transition
-        : transitions[i % transitions.length]
+    scene_text: typeof raw.scene_text === 'string'
+      ? raw.scene_text
+      : `Сцена ${i + 1}`,
+    image_prompt: typeof raw.image_prompt === 'string'
+      ? raw.image_prompt
+      : '16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style',
+    voice_text: typeof raw.voice_text === 'string'
+      ? raw.voice_text
+      : `Сцена ${i + 1}`,
+    camera_effect: typeof raw.camera_effect === 'string' && (VALID_CAMERA_EFFECTS as readonly string[]).includes(raw.camera_effect)
+      ? raw.camera_effect
+      : VALID_CAMERA_EFFECTS[i % VALID_CAMERA_EFFECTS.length],
+    transition: typeof raw.transition === 'string' && (VALID_TRANSITIONS as readonly string[]).includes(raw.transition)
+      ? raw.transition
+      : VALID_TRANSITIONS[i % VALID_TRANSITIONS.length],
     };
   });
 }
+
+// ─── Main Handler ───────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   let userId: string | null = null;
@@ -123,60 +196,80 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     userId = body.userId;
-    const prompt = body.prompt;
-    let showId = body.showId;
+    const prompt: string = body.prompt || '';
+    let showId: string | undefined = body.showId;
 
+    // ── Validate ──────────────────────────────────────────────────────────
     if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
+
+    if (!prompt.trim()) {
+      return NextResponse.json({ error: 'prompt is required' }, { status: 400 });
+    }
+
+    console.log(`\n━━━ Create Episode for user ${userId.substring(0, 8)}... ━━━`);
+    console.log(`[create] Prompt: "${prompt.substring(0, 80)}..."`);
 
     const supabase = getSupabaseAdmin();
 
-    // 1. Deduct 1 token
+    // ── 1. Check & deduct token balance ───────────────────────────────────
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('token_balance')
       .eq('id', userId)
       .single();
 
-    if (userError || !user || user.token_balance < 1) {
+    if (userError || !user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (user.token_balance < 1) {
       return NextResponse.json({ error: 'Insufficient tokens' }, { status: 402 });
     }
 
+    // Save pre-deduction balance for potential rollback
     balanceToRevert = user.token_balance;
 
-    await supabase
+    const { error: deductErr } = await supabase
       .from('users')
       .update({ token_balance: user.token_balance - 1 })
       .eq('id', userId);
 
-    // 2. Generate the storyboard script via LLM
-    const script = await generateScript(prompt || 'киберпанк приключение');
+    if (deductErr) {
+      throw new Error(`Failed to deduct token: ${deductErr.message}`);
+    }
 
-    // 3. Create pending episode record with the scenes array initialized
-    const initialAssets = {
-      progress: 10,
-      step: 'keyframes' as const,
-      userPrompt: prompt || 'киберпанк приключение',
-      scenes: script
-    };
+    console.log(`[create] Token deducted: ${user.token_balance} → ${user.token_balance - 1}`);
 
-    // Create a new show if one wasn't provided
+    // ── 2. Generate storyboard script via LLM ────────────────────────────
+    const scenes = await generateScript(prompt);
+
+    // ── 3. Create show if not provided ───────────────────────────────────
     if (!showId) {
-      const showTitle = (prompt || 'Новый сериал').substring(0, 30) + ((prompt || '').length > 30 ? '...' : '');
+      const showTitle = prompt.length > 30
+        ? prompt.substring(0, 30) + '...'
+        : prompt;
+
       const { data: newShow, error: showError } = await supabase
         .from('shows')
-        .insert({
-          user_id: userId,
-          title: showTitle
-        })
-        .select()
+        .insert({ user_id: userId, title: showTitle })
+        .select('id')
         .single();
-        
+
       if (!showError && newShow) {
         showId = newShow.id;
+        console.log(`[create] New show created: ${showId?.substring(0, 8)}...`);
       }
     }
+
+    // ── 4. Insert episode record ─────────────────────────────────────────
+    const initialAssets: EpisodeAssets = {
+      progress: 0,
+      step: 'keyframes',
+      userPrompt: prompt,
+      scenes,
+    };
 
     const { data: episode, error: epError } = await supabase
       .from('episodes')
@@ -184,21 +277,30 @@ export async function POST(request: Request) {
         user_id: userId,
         show_id: showId,
         status: 'pending',
-        assets_json: initialAssets
+        assets_json: initialAssets,
       })
-      .select()
+      .select('id')
       .single();
 
     if (epError || !episode) {
-      throw new Error('Failed to create episode record in DB');
+      throw new Error(`Failed to insert episode: ${epError?.message || 'no data'}`);
     }
 
-    return NextResponse.json({ success: true, episodeId: episode.id, scenes: script });
+    console.log(`[create] ✓ Episode ${episode.id.substring(0, 8)}... created with ${scenes.length} scenes`);
+
+    // ── 5. Return response ───────────────────────────────────────────────
+    return NextResponse.json({
+      success: true,
+      episodeId: episode.id,
+      scenes,
+      totalScenes: scenes.length,
+    });
 
   } catch (error) {
-    console.error('Episode creation error:', error);
-    
-    // Revert token deduction if we failed during LLM or DB insertion
+    const message = error instanceof Error ? error.message : 'Internal Server Error';
+    console.error('[create] ✗ Error:', message);
+
+    // Rollback token deduction on failure
     if (userId && balanceToRevert !== null) {
       try {
         const supabase = getSupabaseAdmin();
@@ -206,12 +308,12 @@ export async function POST(request: Request) {
           .from('users')
           .update({ token_balance: balanceToRevert })
           .eq('id', userId);
+        console.log('[create] Token refunded');
       } catch (refundErr) {
-        console.error('Failed to refund token after generation error:', refundErr);
+        console.error('[create] ✗ Failed to refund token:', refundErr);
       }
     }
 
-    const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
