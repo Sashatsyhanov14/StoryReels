@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30; // LLM script generation may take up to 30s
+export const maxDuration = 60; // LLM script generation may take up to 60s
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -104,6 +104,8 @@ function buildSystemPrompt(): string {
 
 Стиль: СТРОГО 16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art. Все сцены должны выглядеть как кадры из одной ретро-игры на Super Nintendo.
 Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне. Эти кадры будут склеены в одно видео, поэтому визуальный стиль должен быть максимально консистентным. Каждый image_prompt ОБЯЗАТЕЛЬНО должен начинаться со слов: "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style".
+
+Ограничение по объему (критично для скорости): Пиши тексты СВЕРХКРАТКО. Каждое поле scene_text должно содержать строго 1 короткое предложение. Каждое поле voice_text должно быть объемом строго 1 предложение средней длины (до 15 слов).
 
 Правила драматургии и озвучки (CapCut style):
 Кадры 1-2: Мощный хук (hook), экспозиция, завязка. Закадровый голос должен интриговать с первой секунды.
