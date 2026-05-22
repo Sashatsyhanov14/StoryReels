@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 export const maxDuration = 60; // LLM script generation may take up to 60s
 
 // ─── Types ──────────────────────────────────────────────────────────────────
