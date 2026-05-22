@@ -1,47 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { ChatMessage, ChatEpisodePayload } from '@/lib/chat-types';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
 export const maxDuration = 60; // LLM script generation may take up to 60s
 
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-interface SceneData {
-  scene_text: string;
-  image_prompt: string;
-  voice_text: string;
-  camera_effect: string;
-  transition: string;
-}
-
-interface EpisodeAssets {
-  progress: number;
-  step: 'script' | 'keyframes' | 'voiceover' | 'compiling' | 'done';
-  userPrompt: string;
-  scenes: SceneData[];
-}
-
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const SCENE_COUNT = 12;
-
-const VALID_CAMERA_EFFECTS = [
-  'zoom-in-fast', 'zoom-out-slow', 'camera-shake',
-  'zoom-in-spin', 'pan-left', 'pan-right', 'pan-diagonal',
-] as const;
-
-const VALID_TRANSITIONS = [
-  'fade-to-black', 'glitch-cut', 'white-flash', 'cross-blur', 'cross-fade',
-] as const;
+const MIN_MESSAGES = 12;
 
 // ─── LLM Script Generation ─────────────────────────────────────────────────
 
-/**
- * Generates a storyboard script of SCENE_COUNT scenes via Polza.ai (gpt-4o-mini).
- * Returns validated and sanitized scene data.
- */
-async function generateScript(userPrompt: string): Promise<SceneData[]> {
+async function generateScript(userPrompt: string): Promise<ChatMessage[]> {
   const apiKey = process.env.POLZA_API_KEY;
 
   if (!apiKey) {
@@ -49,7 +20,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
     return createMockScript(userPrompt);
   }
 
-  console.log(`[generateScript] Requesting ${SCENE_COUNT}-scene script for: "${userPrompt.substring(0, 60)}..."`);
+  console.log(`[generateScript] Requesting chat script for: "${userPrompt.substring(0, 60)}..."`);
 
   const response = await fetch('https://polza.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -63,7 +34,7 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
         { role: 'system', content: buildSystemPrompt() },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.7,
+      temperature: 0.75,
     }),
   });
 
@@ -79,65 +50,46 @@ async function generateScript(userPrompt: string): Promise<SceneData[]> {
     throw new Error('LLM response missing content');
   }
 
-  const scenes = parseAndValidateScenes(content);
-  console.log(`[generateScript] ✓ Parsed ${scenes.length} scenes`);
-  return scenes;
+  const messages = parseAndValidateMessages(content);
+  console.log(`[generateScript] ✓ Parsed ${messages.length} messages`);
+  return messages;
 }
 
-/**
- * Creates a deterministic mock script for development/testing.
- */
-function createMockScript(userPrompt: string): SceneData[] {
-  return Array.from({ length: SCENE_COUNT }, (_, i) => ({
-    scene_text: `Описание действия и визуала для кадра ${i + 1}`,
-    image_prompt: `16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art, scene from: ${userPrompt}`,
-    voice_text: `Сцена ${i + 1}: Глубокий закадровый текст на русском. Сюжет для "${userPrompt}"`,
-    camera_effect: VALID_CAMERA_EFFECTS[i % VALID_CAMERA_EFFECTS.length],
-    transition: VALID_TRANSITIONS[i % VALID_TRANSITIONS.length],
+function createMockScript(userPrompt: string): ChatMessage[] {
+  return Array.from({ length: 15 }, (_, i) => ({
+    id: `msg-${i + 1}`,
+    sender: i % 2 === 0 ? 'Ты' : 'Собеседник',
+    text: `Сообщение ${i + 1} в истории про "${userPrompt}"`,
+    typingDelayMs: 1500,
+    mediaPrompt: i === 4 ? `Scary shadow behind the door, dark room, 9:16 aspect ratio` : undefined,
+    isCliffhanger: i === 5 ? true : undefined,
   }));
 }
 
-/**
- * Builds the system prompt for the LLM scriptwriter.
- */
 function buildSystemPrompt(): string {
-  return `Ты — режиссер и сценарист вирусных кинематографичных Reels/TikTok видео (в стиле крутых эдитов из CapCut). Твоя задача — создать глубокий, психологический или остросюжетный мини-сериал, который ощущается как ОДНО ЦЕЛЬНОЕ непрерывное видео из ${SCENE_COUNT} кадров.
+  return `Ты — сценарист вирусных интерактивных чат-историй (в стиле Hooked, Yarn, переписки-страшилки). Твоя задача — создать захватывающий диалог из 15-20 сообщений.
 
-Стиль: СТРОГО 16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, detailed pixel art. Все сцены должны выглядеть как кадры из одной ретро-игры на Super Nintendo.
-Важно: зафиксируй внешность персонажей, прописывай её в каждом image_prompt, чтобы они не менялись внешне. Эти кадры будут склеены в одно видео, поэтому визуальный стиль должен быть максимально консистентным. Каждый image_prompt ОБЯЗАТЕЛЬНО должен начинаться со слов: "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style".
+Каждое сообщение в диалоге должно быть объектом с полями:
+- "id": уникальная строка, например "msg-1", "msg-2", ...
+- "sender": имя отправителя, строго одно из двух: "Ты" (главный герой) или другое имя (собеседник, например "Маньяк", "Мама", "Неизвестный").
+- "text": текст сообщения на русском языке. Пиши кратко, живо, как в реальном мессенджере.
+- "typingDelayMs": число (мс), задержка перед показом сообщения (имитация печатания). Для обычных реплик от 1000 до 3000.
+- "mediaPrompt": (необязательно) если реплика подразумевает отправку фото (например: "Смотри, что за окном" или "Я отправил тебе фото..."), укажи детальный промпт для генерации картинки на английском языке. Будь конкретен (например: "A dark scary street, viewed through a dirty window, night time, cinematic lighting, 9:16 aspect ratio"). Максимум 1-2 таких фото во всей истории.
+- "isCliffhanger": (необязательно, boolean) установи true ровно для ОДНОГО сообщения во второй половине диалога (обычно между 5-м и 8-м сообщением), на самом интригующем или пугающем моменте (например, прямо перед или сразу после отправки жуткого фото, или важного сюжетного поворота). Это заблокирует чтение и вызовет paywall.
 
-Ограничение по объему (критично для скорости): Пиши тексты СВЕРХКРАТКО. Каждое поле scene_text должно содержать строго 1 короткое предложение. Каждое поле voice_text должно быть объемом строго 1 предложение средней длины (до 15 слов).
-
-Правила драматургии и озвучки (CapCut style):
-Кадры 1-2: Мощный хук (hook), экспозиция, завязка. Закадровый голос должен интриговать с первой секунды.
-Кадры 3-5: Развитие сюжета, знакомство с миром и персонажами. Текст (voice_text) должен плавно перетекать из кадра в кадр, как единый монолог диктора.
-Кадры 6-8: Нарастание напряжения, усложнение конфликта. Визуал становится динамичнее.
-Кадры 9-10: Кульминация, пик конфликта, экшен.
-Кадр 11: Развязка или ложная развязка.
-Кадр 12: Клиффхэнгер или мощный вывод. Сцена обрывается на интригующем моменте.
-
-В полях camera_effect используй значения: ${VALID_CAMERA_EFFECTS.map(e => `'${e}'`).join(', ')}. Чередуй их логично для видео-монтажа.
-В полях transition используй: ${VALID_TRANSITIONS.map(t => `'${t}'`).join(', ')}.
-
-Выдай ответ СТРОГО в формате JSON (массив из ${SCENE_COUNT} объектов), без markdown-разметки:
+Выдай ответ СТРОГО в формате JSON (массив объектов без markdown-разметки):
 [
   {
-    "frame": 1,
-    "scene_text": "Текст сценария: краткое описание того, что происходит в этой сцене",
-    "image_prompt": "16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style, [English description of the scene for the image generator, maintaining the main character's design]",
-    "voice_text": "Глубокий непрерывный закадровый текст на русском для TTS. Плотный сюжет, фраза может начаться здесь...",
-    "camera_effect": "camera-shake",
-    "transition": "cross-fade"
-  }
+    "id": "msg-1",
+    "sender": "Ты",
+    "text": "Привет! Ты где?",
+    "typingDelayMs": 1500
+  },
+  ...
 ]`;
 }
 
-/**
- * Parses the LLM JSON output and validates each scene has all required fields.
- * Strips markdown wrappers, handles edge cases.
- */
-function parseAndValidateScenes(rawContent: string): SceneData[] {
-  // Strip markdown code fences if present
+function parseAndValidateMessages(rawContent: string): ChatMessage[] {
   const cleaned = rawContent
     .trim()
     .replace(/^```(?:json)?\s*/i, '')
@@ -148,7 +100,6 @@ function parseAndValidateScenes(rawContent: string): SceneData[] {
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    // Attempt to extract JSON array from the content
     const match = cleaned.match(/\[[\s\S]*\]/);
     if (match) {
       parsed = JSON.parse(match[0]);
@@ -157,35 +108,20 @@ function parseAndValidateScenes(rawContent: string): SceneData[] {
     }
   }
 
-  const parsedObj = parsed as Record<string, unknown>;
-  const rawScenes = Array.isArray(parsed)
-    ? parsed
-    : (Array.isArray(parsedObj?.scenes) ? parsedObj.scenes : null)
-      || (Array.isArray(parsedObj?.storyboard) ? parsedObj.storyboard : null)
-      || [];
-
-  if (!Array.isArray(rawScenes) || rawScenes.length === 0) {
-    throw new Error('LLM response contains no scenes array');
+  const rawMessages = Array.isArray(parsed) ? parsed : [];
+  if (rawMessages.length === 0) {
+    throw new Error('LLM response contains no messages array');
   }
 
-  return rawScenes.slice(0, SCENE_COUNT).map((rawItem: unknown, i: number): SceneData => {
-    const raw = rawItem as Record<string, unknown>;
+  return rawMessages.map((rawItem: unknown, i: number): ChatMessage => {
+    const raw = rawItem as Record<string, any>;
     return {
-    scene_text: typeof raw.scene_text === 'string'
-      ? raw.scene_text
-      : `Сцена ${i + 1}`,
-    image_prompt: typeof raw.image_prompt === 'string'
-      ? raw.image_prompt
-      : '16-bit pixel art style, retro JRPG aesthetic, SNES HD-2D style',
-    voice_text: typeof raw.voice_text === 'string'
-      ? raw.voice_text
-      : `Сцена ${i + 1}`,
-    camera_effect: typeof raw.camera_effect === 'string' && (VALID_CAMERA_EFFECTS as readonly string[]).includes(raw.camera_effect)
-      ? raw.camera_effect
-      : VALID_CAMERA_EFFECTS[i % VALID_CAMERA_EFFECTS.length],
-    transition: typeof raw.transition === 'string' && (VALID_TRANSITIONS as readonly string[]).includes(raw.transition)
-      ? raw.transition
-      : VALID_TRANSITIONS[i % VALID_TRANSITIONS.length],
+      id: typeof raw.id === 'string' ? raw.id : `msg-${i + 1}`,
+      sender: typeof raw.sender === 'string' ? raw.sender : (i % 2 === 0 ? 'Ты' : 'Собеседник'),
+      text: typeof raw.text === 'string' ? raw.text : '',
+      typingDelayMs: typeof raw.typingDelayMs === 'number' ? raw.typingDelayMs : 1500,
+      mediaPrompt: typeof raw.mediaPrompt === 'string' && raw.mediaPrompt ? raw.mediaPrompt : undefined,
+      isCliffhanger: typeof raw.isCliffhanger === 'boolean' ? raw.isCliffhanger : undefined,
     };
   });
 }
@@ -202,7 +138,6 @@ export async function POST(request: Request) {
     const prompt: string = body.prompt || '';
     let showId: string | undefined = body.showId;
 
-    // ── Validate ──────────────────────────────────────────────────────────
     if (!userId) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
@@ -231,7 +166,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Insufficient tokens' }, { status: 402 });
     }
 
-    // Save pre-deduction balance for potential rollback
     balanceToRevert = user.token_balance;
 
     const { error: deductErr } = await supabase
@@ -245,8 +179,17 @@ export async function POST(request: Request) {
 
     console.log(`[create] Token deducted: ${user.token_balance} → ${user.token_balance - 1}`);
 
-    // ── 2. Generate storyboard script via LLM ────────────────────────────
-    const scenes = await generateScript(prompt);
+    // ── 2. Generate chat messages script via LLM ─────────────────────────
+    const messages = await generateScript(prompt);
+
+    // Find first cliffhanger index
+    let cliffhangerIndex = messages.findIndex(m => m.isCliffhanger);
+    if (cliffhangerIndex === -1 || cliffhangerIndex < 3) {
+      cliffhangerIndex = Math.min(5, messages.length - 1);
+      if (messages[cliffhangerIndex]) {
+        messages[cliffhangerIndex].isCliffhanger = true;
+      }
+    }
 
     // ── 3. Create show if not provided ───────────────────────────────────
     if (!showId) {
@@ -266,12 +209,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 4. Insert episode record ─────────────────────────────────────────
-    const initialAssets: EpisodeAssets = {
-      progress: 0,
-      step: 'keyframes',
-      userPrompt: prompt,
-      scenes,
+    // ── 4. Insert episode record with JSONB payload ──────────────────────
+    const payload: ChatEpisodePayload = {
+      messages,
+      unlockedTillIndex: cliffhangerIndex,
     };
 
     const { data: episode, error: epError } = await supabase
@@ -279,8 +220,8 @@ export async function POST(request: Request) {
       .insert({
         user_id: userId,
         show_id: showId,
-        status: 'pending',
-        assets_json: initialAssets,
+        status: 'ready', // We set it to ready immediately since script is generated
+        assets_json: payload,
       })
       .select('id')
       .single();
@@ -289,21 +230,19 @@ export async function POST(request: Request) {
       throw new Error(`Failed to insert episode: ${epError?.message || 'no data'}`);
     }
 
-    console.log(`[create] ✓ Episode ${episode.id.substring(0, 8)}... created with ${scenes.length} scenes`);
+    console.log(`[create] ✓ Episode ${episode.id.substring(0, 8)}... created with ${messages.length} messages`);
 
     // ── 5. Return response ───────────────────────────────────────────────
     return NextResponse.json({
       success: true,
       episodeId: episode.id,
-      scenes,
-      totalScenes: scenes.length,
+      payload,
     });
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal Server Error';
     console.error('[create] ✗ Error:', message);
 
-    // Rollback token deduction on failure
     if (userId && balanceToRevert !== null) {
       try {
         const supabase = getSupabaseAdmin();
