@@ -337,9 +337,21 @@ export default function Home() {
     const finalPrompt = activePrompt || prompt;
     if (!finalPrompt.trim()) return;
 
-    // Bypassed balance restriction for UI testing - auto-refills
+    // Bypassed balance restriction for UI testing - auto-refills in DB as well
     if (tokenBalance < 1) {
-      setTokenBalance(10);
+      try {
+        const refillResponse = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, addTokens: 10 }),
+        });
+        if (refillResponse.ok) {
+          const refillData = await refillResponse.json();
+          setTokenBalance(refillData.tokenBalance || 10);
+        }
+      } catch (err) {
+        console.error("Refill tokens error:", err);
+      }
     }
 
     setIsGenerating(true);
