@@ -634,73 +634,147 @@ export default function Home() {
       progressMessage = "Сценарист пишет сюжет и промпты...";
     }
 
-    const radius = 50;
-    const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
-
     return (
-      <div className="h-full w-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-950 via-zinc-950 to-black text-white flex flex-col items-center justify-center p-6 select-none animate-fade-in">
+      <div className="h-full w-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-950 via-zinc-950 to-black text-white flex flex-col items-center justify-start p-4 md:p-6 overflow-y-auto select-none animate-fade-in scrollbar-none">
         {/* Glowing Header badge */}
-        <div className="mb-8 flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 px-4 py-2 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+        <div className="mt-4 mb-6 flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 px-4 py-2 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.1)]">
           <span className="h-2 w-2 rounded-full bg-purple-500 animate-ping"></span>
           <span className="text-[10px] font-mono font-black tracking-wider uppercase text-purple-400">
-            ИИ-Режиссер: Генерация
+            ИИ-Режиссер: Генерация Reels
           </span>
         </div>
 
-        {/* Center Progress Circle */}
-        <div className="relative mb-8 flex items-center justify-center">
-          {/* Outer glow effect */}
-          <div className="absolute inset-0 bg-purple-500/5 blur-3xl rounded-full"></div>
-          
-          <svg className="w-40 h-40 transform -rotate-90 z-10">
-            {/* Background circle */}
-            <circle
-              cx="80"
-              cy="80"
-              r={radius}
-              className="stroke-zinc-900"
-              strokeWidth="6"
-              fill="transparent"
-            />
-            {/* Progress circle */}
-            <circle
-              cx="80"
-              cy="80"
-              r={radius}
-              className="stroke-purple-500 transition-all duration-500 ease-out"
-              strokeWidth="6"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              fill="transparent"
-            />
-          </svg>
-          
-          {/* Central Percent Text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-            <span className="text-3xl font-black font-mono tracking-tight text-white">
-              {progressPercent}%
-            </span>
-            <span className="text-[9px] text-zinc-500 font-mono font-bold uppercase tracking-wider mt-1">
-              {doneCount}/{totalCount} кадров
-            </span>
+        {/* Top Section: Radial Progress & Global Info */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-8 w-full max-w-2xl bg-zinc-900/30 border border-zinc-800/40 p-5 rounded-3xl backdrop-blur-md">
+          {/* Circular Progress */}
+          <div className="relative flex items-center justify-center shrink-0">
+            <div className="absolute inset-0 bg-purple-500/5 blur-3xl rounded-full"></div>
+            <svg className="w-32 h-32 transform -rotate-90 z-10">
+              <circle
+                cx="64"
+                cy="64"
+                r={48}
+                className="stroke-zinc-900"
+                strokeWidth="6"
+                fill="transparent"
+              />
+              <circle
+                cx="64"
+                cy="64"
+                r={48}
+                className="stroke-purple-500 transition-all duration-500 ease-out"
+                strokeWidth="6"
+                strokeDasharray={2 * Math.PI * 48}
+                strokeDashoffset={2 * Math.PI * 48 - (progressPercent / 100) * (2 * Math.PI * 48)}
+                strokeLinecap="round"
+                fill="transparent"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+              <span className="text-2xl font-black font-mono tracking-tight text-white">
+                {progressPercent}%
+              </span>
+              <span className="text-[8px] text-zinc-500 font-mono font-bold uppercase tracking-wider mt-0.5">
+                {doneCount}/{totalCount} кадров
+              </span>
+            </div>
+          </div>
+
+          {/* Text Status */}
+          <div className="text-center sm:text-left flex-1">
+            <h3 className="text-base font-black text-white tracking-wide mb-1 animate-pulse duration-1000">
+              {progressMessage}
+            </h3>
+            <p className="text-[11px] text-zinc-400 leading-relaxed font-medium mb-3">
+              Идет параллельный рендеринг 16-bit JRPG графики и синтез голоса. Кадры подгружаются в реальном времени.
+            </p>
+            {/* Tiny text log of current action */}
+            <div className="inline-flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-md border border-zinc-800/50">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+              <span className="text-[9px] font-mono text-zinc-500">
+                Текущее действие: <span className="text-purple-300 font-bold">{doneCount < totalCount ? `Отрисовка кадра ${doneCount + 1}...` : "Финальный рендеринг видео"}</span>
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Status Text Message */}
-        <div className="text-center max-w-sm mb-8 px-4">
-          <h3 className="text-sm font-bold text-white tracking-wide mb-2 animate-pulse duration-1000">
-            {progressMessage}
-          </h3>
-          <p className="text-[10px] text-zinc-500 leading-relaxed font-medium">
-            Наш искусственный интеллект одновременно пишет сценарий, рисует аниме-кадры, озвучивает реплики и накладывает переходы. Не закрывайте страницу.
-          </p>
+        {/* Real-time Storyboard Grid! */}
+        <div className="w-full max-w-4xl mb-8">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <span className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-widest">Раскадровка Reels</span>
+            <span className="text-[9px] text-purple-400 font-bold font-mono">{progressPercent === 100 ? "Готово к просмотру" : "Рендеринг в реальном времени..."}</span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {selectedEpisode?.scenes.map((scene, idx) => {
+              const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
+              const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
+
+              return (
+                <div 
+                  key={idx} 
+                  className={`relative aspect-[9/16] rounded-xl overflow-hidden border transition-all duration-300 flex flex-col items-center justify-center p-2 text-center group ${
+                    isDone 
+                      ? "border-purple-500/40 bg-zinc-900 shadow-[0_0_15px_rgba(168,85,247,0.1)]" 
+                      : isCurrent 
+                        ? "border-purple-500/60 bg-purple-950/20 animate-pulse" 
+                        : "border-zinc-900 bg-zinc-950/40 opacity-40"
+                  }`}
+                >
+                  {/* Background / Preview */}
+                  {isDone ? (
+                    <>
+                      <img 
+                        src={scene.imageUrl} 
+                        alt={`Кадр ${idx + 1}`}
+                        className="absolute inset-0 w-full h-full object-cover z-0 group-hover:scale-105 transition-transform duration-300"
+                      />
+                      {/* Dark overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 z-10"></div>
+                      
+                      {/* Content */}
+                      <div className="absolute inset-0 p-2.5 flex flex-col justify-between z-20 text-left">
+                        <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-mono text-emerald-400 border border-emerald-500/20 w-fit">
+                          Кадр {idx + 1}
+                        </span>
+                        <div>
+                          <p className="text-[8px] text-zinc-300 line-clamp-2 font-medium leading-tight mb-1">
+                            {scene.text}
+                          </p>
+                          <div className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-[7px] font-mono text-emerald-400 uppercase font-black tracking-widest">Готов</span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : isCurrent ? (
+                    <div className="flex flex-col items-center justify-center p-2 z-10">
+                      {/* Circular active spinner */}
+                      <div className="relative mb-3 flex items-center justify-center">
+                        <div className="absolute w-8 h-8 rounded-full border border-purple-500/20"></div>
+                        <div className="w-8 h-8 rounded-full border-t-2 border-purple-500 animate-spin"></div>
+                      </div>
+                      <span className="bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-[8px] font-mono border border-purple-500/30 mb-2">
+                        Кадр {idx + 1}
+                      </span>
+                      <span className="text-[8px] text-purple-300 font-bold uppercase tracking-widest animate-pulse">Рендер...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-2 z-10 text-zinc-700">
+                      <span className="text-xl font-mono font-black mb-1">#{idx + 1}</span>
+                      <span className="text-[8px] font-mono uppercase tracking-wider">В очереди</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* AI Console Logs Box */}
-        <div className="w-full max-w-md bg-black/60 border border-zinc-900/80 rounded-2xl p-4 font-mono text-[10px] text-zinc-400 max-h-[140px] overflow-y-auto scrollbar-none space-y-1.5 backdrop-blur-sm shadow-inner">
-          <div className="flex items-center justify-between border-b border-zinc-900/60 pb-1.5 mb-2">
+        <div className="w-full max-w-2xl bg-black/60 border border-zinc-900 rounded-2xl p-4 font-mono text-[10px] text-zinc-400 max-h-[160px] overflow-y-auto scrollbar-none space-y-1.5 backdrop-blur-sm shadow-inner shrink-0">
+          <div className="flex items-center justify-between border-b border-zinc-900 pb-1.5 mb-2">
             <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-extrabold">Логи ИИ-режиссера</span>
             <div className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
@@ -708,7 +782,7 @@ export default function Home() {
             </div>
           </div>
           <p className="text-zinc-600">[Система] ⚡ Инициализация видеодвижка StoryReels...</p>
-          <p className="text-zinc-600">[Система] ⚙️ Стиль: 16-bit JRPG Pixel Art (portrait_16_9)</p>
+          <p className="text-zinc-600">[Система] ⚙️ Стиль: 16-bit JRPG Pixel Art (512x896)</p>
           {selectedEpisode?.scenes.map((scene, idx) => {
             const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
             const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
@@ -716,14 +790,14 @@ export default function Home() {
             if (isDone) {
               return (
                 <p key={idx} className="text-emerald-400/90">
-                  ✓ Сцена {idx + 1}: Кадр отрисован (576x1024), озвучка синтезирована.
+                  ✓ Сцена {idx + 1}: Кадр отрисован, аудиодорожка синтезирована и загружена.
                 </p>
               );
             }
             if (isCurrent) {
               return (
                 <p key={idx} className="text-purple-400 animate-pulse">
-                  ⚡ Сцена {idx + 1}: Генерация графики & синтез речи...
+                  ⚡ Сцена {idx + 1}: Генерация 16-bit графики & синтез речи...
                 </p>
               );
             }
