@@ -3,8 +3,7 @@ import { getSupabaseAdmin } from '@/lib/supabase';
 import { ChatMessage, ChatEpisodePayload } from '@/lib/chat-types';
 
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
-export const maxDuration = 60; // LLM script generation may take up to 60s
+export const maxDuration = 60; // Vercel max duration
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -20,10 +19,9 @@ async function generateScript(userPrompt: string): Promise<{ messages: ChatMessa
     return { messages: createMockScript(userPrompt), scenario: "Mock scenario" };
   }
 
-  console.log(`[generateScript] Requesting scenario for: "${userPrompt.substring(0, 60)}..."`);
+  console.log(`[generateScript] Requesting script for: "${userPrompt.substring(0, 60)}..."`);
 
-  // Step 1: Generate Scenario
-  const scenarioResponse = await fetch('https://polza.ai/api/v1/chat/completions', {
+  const response = await fetch('https://polza.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -32,61 +30,29 @@ async function generateScript(userPrompt: string): Promise<{ messages: ChatMessa
     body: JSON.stringify({
       model: 'openai/gpt-4o-mini',
       messages: [
-        { role: 'system', content: buildScenarioPrompt() },
+        { role: 'system', content: buildPrompt() },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.75,
     }),
   });
 
-  if (!scenarioResponse.ok) {
-    const errorText = await scenarioResponse.text().catch(() => '(unreadable)');
-    throw new Error(`Polza LLM (Scenario) HTTP ${scenarioResponse.status}: ${errorText.substring(0, 300)}`);
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '(unreadable)');
+    throw new Error(`Polza LLM HTTP ${response.status}: ${errorText.substring(0, 300)}`);
   }
 
-  const scenarioResult = await scenarioResponse.json();
-  const scenarioText = scenarioResult?.choices?.[0]?.message?.content;
+  const result = await response.json();
+  const content = result?.choices?.[0]?.message?.content;
 
-  if (!scenarioText || typeof scenarioText !== 'string') {
-    throw new Error('LLM scenario response missing content');
+  if (!content || typeof content !== 'string') {
+    throw new Error('LLM response missing content');
   }
 
-  console.log(`[generateScript] ✓ Scenario generated (${scenarioText.length} chars)`);
-  console.log(`[generateScript] Requesting messages based on scenario...`);
-
-  // Step 2: Generate Messages
-  const messagesResponse = await fetch('https://polza.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: 'openai/gpt-4o-mini',
-      messages: [
-        { role: 'system', content: buildMessagesPrompt() },
-        { role: 'user', content: `СЦЕНАРИЙ:\n${scenarioText}` },
-      ],
-      temperature: 0.75,
-    }),
-  });
-
-  if (!messagesResponse.ok) {
-    const errorText = await messagesResponse.text().catch(() => '(unreadable)');
-    throw new Error(`Polza LLM (Messages) HTTP ${messagesResponse.status}: ${errorText.substring(0, 300)}`);
-  }
-
-  const messagesResult = await messagesResponse.json();
-  const messagesContent = messagesResult?.choices?.[0]?.message?.content;
-
-  if (!messagesContent || typeof messagesContent !== 'string') {
-    throw new Error('LLM messages response missing content');
-  }
-
-  const messages = parseAndValidateMessages(messagesContent);
+  const messages = parseAndValidateMessages(content);
   console.log(`[generateScript] ✓ Parsed ${messages.length} messages`);
   
-  return { messages, scenario: scenarioText };
+  return { messages, scenario: "Сгенерировано в один этап." };
 }
 
 function createMockScript(userPrompt: string): ChatMessage[] {
@@ -99,26 +65,15 @@ function createMockScript(userPrompt: string): ChatMessage[] {
   }));
 }
 
-function buildScenarioPrompt(): string {
-  return `Ты — профессиональный сценарист триллеров, драм и хорроров. 
-Твоя задача — написать краткий, но захватывающий сценарий для чат-истории (3-4 абзаца) на основе идеи пользователя.
-В сценарии обязательно должны быть:
-1. Завязка сюжета.
-2. Нарастание напряжения.
-3. Кульминация (самый напряженный момент примерно в середине или чуть дальше, где будет стоять paywall).
-4. Развязка или интригующий финал.
-Главный герой чата всегда "Ты". Выдай только текст сценария.`;
-}
-
-function buildMessagesPrompt(): string {
-  return `Ты — сценарист вирусных интерактивных чат-историй (в стиле Hooked). Твоя задача — опираясь на предоставленный СЦЕНАРИЙ, написать захватывающий диалог из 25-35 сообщений.
+function buildPrompt(): string {
+  return `Ты — сценарист вирусных интерактивных чат-историй (в стиле Hooked). Твоя задача — написать захватывающий диалог (триллер, хоррор, драма) из 15-25 сообщений на основе идеи пользователя.
 
 Каждое сообщение в диалоге должно быть объектом с полями:
 - "id": уникальная строка, например "msg-1", "msg-2", ...
 - "sender": имя отправителя, строго одно из двух: "Ты" (главный герой) или другое имя (собеседник).
-- "text": текст сообщения на русском языке. Пиши кратко, живо, как в реальном мессенджере.
+- "text": текст сообщения на русском языке. Пиши кратко, живо, как в реальном мессенджере. Напряжение должно расти!
 - "typingDelayMs": число (мс), задержка (имитация печатания). Для обычных реплик от 1000 до 3000.
-- "isCliffhanger": (необязательно, boolean) установи true ровно для ОДНОГО сообщения во второй половине диалога (обычно между 12-м и 18-м сообщением), на самом кульминационном моменте из сценария. Это заблокирует чтение и вызовет paywall.
+- "isCliffhanger": (необязательно, boolean) установи true ровно для ОДНОГО сообщения во второй половине диалога (обычно между 10-м и 15-м сообщением), на самом кульминационном и страшном моменте. Это заблокирует чтение и вызовет paywall.
 
 Выдай ответ СТРОГО в формате JSON (массив объектов без markdown-разметки):
 [
