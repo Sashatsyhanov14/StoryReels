@@ -4,9 +4,16 @@ import React, { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/lib/supabase-client";
 import { ChatEpisode, ChatMessage } from "@/lib/chat-types";
-import { Icons } from "@/components/icons";
 
 const INITIAL_EPISODES: ChatEpisode[] = [];
+
+// Quick templates for fast prompt generation
+const TEMPLATES = [
+  { label: "🚪 Запертый подвал", text: "Я очнулся в темном запертом подвале, и на мой телефон приходит странное сообщение..." },
+  { label: "📞 Звонок в 3:00", text: "Звонок со скрытого номера посреди ночи. Голос шепчет, что он стоит прямо за моей дверью..." },
+  { label: "👁️ Чужой в доме", text: "Я один дома. Родители уехали. Вдруг на умный замок приходит уведомление, что кто-то вошел..." },
+  { label: "🤖 Жуткий ИИ", text: "Новый чат-бот с искусственным интеллектом начинает присылать мне фотографии моих окон снаружи..." }
+];
 
 export default function Home() {
   const [userId, setUserId] = useState("");
@@ -14,8 +21,7 @@ export default function Home() {
   const [episodes, setEpisodes] = useState<ChatEpisode[]>(INITIAL_EPISODES);
   const [selectedEpisode, setSelectedEpisode] = useState<ChatEpisode | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isRegistered, setIsRegistered] = useState(true);
-
+  
   // Chat mechanics
   const [revealedIndex, setRevealedIndex] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
@@ -66,11 +72,27 @@ export default function Home() {
     }
   };
 
+  const handleAddFreeTokens = async () => {
+    try {
+      const response = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, addTokens: 5 }),
+      });
+      const data = await response.json();
+      if (data.tokenBalance !== undefined) {
+        setTokenBalance(data.tokenBalance);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleStartGeneration = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || isGenerating) return;
     if (tokenBalance < 1) {
-      alert("Недостаточно токенов!");
+      alert("Недостаточно токенов! Используйте кнопку ниже, чтобы добавить токенов для тестирования.");
       return;
     }
 
@@ -104,7 +126,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error(err);
-      alert("Ошибка при создании истории.");
+      alert("Ошибка при создании истории. Возможно, ИИ перегружен.");
     } finally {
       setIsGenerating(false);
     }
@@ -127,6 +149,7 @@ export default function Home() {
     
     if (nextMsg.typingDelayMs > 0) {
       setIsTyping(true);
+      scrollToBottom();
       setTimeout(() => {
         setIsTyping(false);
         setRevealedIndex((prev) => prev + 1);
@@ -140,11 +163,13 @@ export default function Home() {
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      chatContainerRef.current?.scrollTo({
-        top: chatContainerRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }, 50);
+      if (chatContainerRef.current) {
+        chatContainerRef.current.scrollTo({
+          top: chatContainerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }, 80);
   };
 
   const handlePay = async () => {
@@ -161,7 +186,7 @@ export default function Home() {
         window.location.href = data.confirmation_url;
       } else {
         // Mock unlock for sandbox
-        alert("Оплата прошла успешно! (Песочница)");
+        alert("Режим тестирования: Клиффхэнгер разблокирован бесплатно!");
         setShowPaywall(false);
         
         // Update local episode logic to unlock everything
@@ -179,134 +204,323 @@ export default function Home() {
     }
   };
 
+  // Helper to extract interlocutor name
+  const getInterlocutorName = () => {
+    if (!selectedEpisode) return "Собеседник";
+    const otherMsg = selectedEpisode.messages.find(m => m.sender !== "Ты");
+    return otherMsg ? otherMsg.sender : "Собеседник";
+  };
+
+  const interlocutorName = getInterlocutorName();
+
   return (
-    <div className="flex h-screen bg-zinc-950 text-white overflow-hidden font-sans select-none">
+    <div className="flex h-screen bg-[#09090b] text-zinc-100 overflow-hidden font-sans select-none antialiased">
       
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-40 w-72 bg-zinc-900/90 backdrop-blur-md transform transition-transform duration-300 md:relative md:translate-x-0 border-r border-zinc-800 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-          <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-            StoryReels Chat
-          </h1>
-          <button className="md:hidden text-zinc-400" onClick={() => setSidebarOpen(false)}>
+      {/* Sidebar Panel */}
+      <aside className={`fixed inset-y-0 left-0 z-40 w-80 bg-zinc-950/80 backdrop-blur-xl border-r border-zinc-900 transform transition-transform duration-300 md:relative md:translate-x-0 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        
+        {/* Sidebar Header */}
+        <div className="p-5 border-b border-zinc-900 flex justify-between items-center bg-zinc-950/40">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+              <span className="text-white text-base font-black">SR</span>
+            </div>
+            <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-purple-400 via-pink-400 to-rose-400 bg-clip-text text-transparent">
+              StoryReels Chat
+            </h1>
+          </div>
+          <button className="md:hidden text-zinc-400 hover:text-white" onClick={() => setSidebarOpen(false)}>
             ✕
           </button>
         </div>
         
-        <div className="p-4 flex flex-col gap-2 border-b border-zinc-800 bg-zinc-900/50">
-          <p className="text-sm text-zinc-400">Токенов: <span className="text-purple-400 font-bold">{tokenBalance}</span></p>
-          <form onSubmit={handleStartGeneration} className="flex flex-col gap-2">
-            <input 
-              type="text" 
-              placeholder="О чем история?" 
-              value={prompt}
-              onChange={e => setPrompt(e.target.value)}
-              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
-            />
+        {/* Token Balance Dashboard Card */}
+        <div className="p-5 border-b border-zinc-900 bg-zinc-950/20 flex flex-col gap-3">
+          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900 to-zinc-950 border border-zinc-800 p-4 shadow-xl">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+            <span className="text-xs text-zinc-500 uppercase tracking-widest font-semibold">Ваш Баланс</span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-3xl font-black text-purple-400 tracking-tight">{tokenBalance}</span>
+              <span className="text-xs text-zinc-400 font-medium">токенов</span>
+            </div>
+            <button 
+              onClick={handleAddFreeTokens}
+              className="mt-3 w-full bg-zinc-800/80 hover:bg-zinc-800 text-xs font-semibold py-2 px-3 rounded-lg border border-zinc-700/60 hover:border-zinc-600 transition-all text-zinc-300 active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5v14"/>
+              </svg> Добавить токенов (Тест)
+            </button>
+          </div>
+        </div>
+
+        {/* Create Story Form */}
+        <div className="p-5 border-b border-zinc-900 flex flex-col gap-4">
+          <form onSubmit={handleStartGeneration} className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Создать историю</label>
+              <textarea 
+                placeholder="Опишите завязку (например: я заперт в лифте с маньяком...)" 
+                value={prompt}
+                onChange={e => setPrompt(e.target.value)}
+                rows={2}
+                className="w-full bg-zinc-900/60 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all resize-none"
+              />
+            </div>
+
+            {/* Prompt Templates */}
+            <div className="flex flex-wrap gap-1.5 mt-1">
+              {TEMPLATES.map((tmpl, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setPrompt(tmpl.text)}
+                  className="text-[11px] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border border-zinc-800/80 px-2 py-1 rounded-md transition-all cursor-pointer truncate max-w-[125px]"
+                >
+                  {tmpl.label}
+                </button>
+              ))}
+            </div>
+
             <button 
               disabled={isGenerating || !prompt.trim()}
-              className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
+              className="mt-2 w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-lg shadow-purple-950/30 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
             >
-              {isGenerating ? "Генерация..." : "Создать (1 токен)"}
+              {isGenerating ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Генерация истории...
+                </>
+              ) : (
+                "Начать историю (1 токен)"
+              )}
             </button>
           </form>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
-          {episodes.map(ep => (
-            <button
-              key={ep.id}
-              onClick={() => {
-                setSelectedEpisode(ep);
-                setRevealedIndex(0);
-                setSidebarOpen(false);
-              }}
-              className={`w-full text-left p-3 rounded-lg mb-1 truncate text-sm transition-colors ${selectedEpisode?.id === ep.id ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50'}`}
-            >
-              {ep.title}
-            </button>
-          ))}
+        {/* Stories List */}
+        <div className="flex-1 overflow-y-auto p-4 scrollbar-none flex flex-col gap-2">
+          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-2 mb-1">Ваши истории</span>
+          {episodes.length === 0 ? (
+            <div className="text-center py-8 text-sm text-zinc-600">
+              Пока нет созданных историй.
+            </div>
+          ) : (
+            episodes.map(ep => {
+              const isSelected = selectedEpisode?.id === ep.id;
+              const isLocked = ep.unlockedTillIndex < ep.messages.length;
+              // Calculate progress percentage
+              const readProgress = ep.messages.length > 0 
+                ? Math.min(100, Math.round(((revealedIndex && isSelected ? revealedIndex : 0) / ep.messages.length) * 100))
+                : 0;
+
+              return (
+                <button
+                  key={ep.id}
+                  onClick={() => {
+                    setSelectedEpisode(ep);
+                    setRevealedIndex(0);
+                    setSidebarOpen(false);
+                  }}
+                  className={`relative w-full text-left p-3.5 rounded-xl transition-all border group flex flex-col gap-2 cursor-pointer ${
+                    isSelected 
+                      ? 'bg-zinc-900 border-zinc-800 shadow-md shadow-black/30 text-white' 
+                      : 'bg-transparent border-transparent text-zinc-400 hover:bg-zinc-900/40 hover:text-zinc-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 w-full">
+                    <span className="font-semibold text-sm truncate flex-1">{ep.title}</span>
+                    {isLocked ? (
+                      <span className="text-amber-500 text-xs flex items-center" title="Требуется разблокировка">🔒</span>
+                    ) : (
+                      <span className="text-emerald-500 text-xs flex items-center" title="Полностью открыто">✓</span>
+                    )}
+                  </div>
+                  
+                  {/* Progress Indicators */}
+                  <div className="flex items-center justify-between text-[11px] text-zinc-500 w-full">
+                    <span>{ep.messages.length} реплик</span>
+                    {isSelected && <span>Прогресс: {readProgress}%</span>}
+                  </div>
+                  
+                  {/* Linear Progress Bar */}
+                  {isSelected && (
+                    <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-300"
+                        style={{ width: `${readProgress}%` }}
+                      />
+                    </div>
+                  )}
+                </button>
+              );
+            })
+          )}
         </div>
-      </div>
+      </aside>
 
       {/* Main Chat Area */}
-      <div className="flex-1 relative flex flex-col bg-zinc-950 h-full" onClick={handleTap}>
+      <main className="flex-1 relative flex flex-col bg-[#0b0b0e] h-full" onClick={handleTap}>
         
-        {/* Header */}
-        <div className="absolute top-0 inset-x-0 h-16 bg-zinc-900/80 backdrop-blur-lg border-b border-zinc-800 z-10 flex items-center px-4">
-          <button className="md:hidden mr-4 text-zinc-400" onClick={(e) => { e.stopPropagation(); setSidebarOpen(true); }}>
-            <Icons.List className="w-6 h-6" />
-          </button>
-          <h2 className="text-lg font-medium text-zinc-100">{selectedEpisode?.title || "Выберите историю"}</h2>
-        </div>
+        {/* Glassmorphic Header */}
+        <header className="absolute top-0 inset-x-0 h-16 bg-zinc-950/70 backdrop-blur-xl border-b border-zinc-900/80 z-30 flex items-center justify-between px-4 md:px-6">
+          <div className="flex items-center gap-3">
+            <button 
+              className="md:hidden text-zinc-400 hover:text-white p-1 rounded-lg" 
+              onClick={(e) => { e.stopPropagation(); setSidebarOpen(true); }}
+            >
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" x2="20" y1="12" y2="12" />
+                <line x1="4" x2="20" y1="6" y2="6" />
+                <line x1="4" x2="20" y1="18" y2="18" />
+              </svg>
+            </button>
+            
+            {selectedEpisode ? (
+              <div className="flex items-center gap-3">
+                {/* Status Avatar */}
+                <div className="relative w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-sm text-purple-400 shadow-md">
+                  {interlocutorName.substring(0, 1)}
+                  {/* Pulsating online dot */}
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0b0b0e] rounded-full animate-pulse-ring" />
+                </div>
+                <div>
+                  <h2 className="text-sm md:text-base font-bold text-zinc-100 leading-tight">{interlocutorName}</h2>
+                  <span className="text-[11px] text-emerald-400 font-medium tracking-wide">
+                    {isTyping ? "печатает..." : "в сети"}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <h2 className="text-base font-bold text-zinc-400">Нет выбранного диалога</h2>
+            )}
+          </div>
+        </header>
 
-        {/* Messages */}
-        <div ref={chatContainerRef} className="flex-1 overflow-y-auto pt-24 pb-32 px-4 scroll-smooth">
+        {/* Messages Feed */}
+        <section 
+          ref={chatContainerRef} 
+          className="flex-1 overflow-y-auto pt-24 pb-28 px-4 md:px-6 scroll-smooth scrollbar-none flex flex-col"
+        >
           {selectedEpisode ? (
-            <div className="flex flex-col gap-4 max-w-2xl mx-auto">
+            <div className="flex flex-col gap-4 max-w-2xl w-full mx-auto mt-auto">
+              
+              {/* Scenario Summary Banner (CoT context) */}
+              <div className="mb-6 p-4 rounded-xl bg-zinc-950/40 border border-zinc-900/60 text-xs text-zinc-500 leading-relaxed text-center italic">
+                Все события и персонажи являются вымышленными. Нажмите в любой области экрана чата для продвижения по истории.
+              </div>
+
               {selectedEpisode.messages.slice(0, revealedIndex + 1).map((msg, idx) => {
                 const isMe = msg.sender === "Ты";
                 return (
-                  <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%]`}>
-                    {!isMe && <span className="text-xs text-zinc-500 ml-2 mb-1">{msg.sender}</span>}
-                    <div className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-sm leading-relaxed ${isMe ? 'bg-purple-600 rounded-tr-sm text-white' : 'bg-zinc-800 rounded-tl-sm text-zinc-100'}`}>
+                  <div 
+                    key={idx} 
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-message`}
+                  >
+                    {!isMe && (
+                      <span className="text-[11px] text-zinc-500 font-semibold mb-1 ml-2">
+                        {msg.sender}
+                      </span>
+                    )}
+                    <div 
+                      className={`relative px-4 py-2.5 rounded-2xl max-w-[85%] text-[14.5px] leading-relaxed shadow-lg ${
+                        isMe 
+                          ? 'bg-gradient-to-br from-purple-600 to-indigo-600 rounded-tr-sm text-white shadow-purple-950/20' 
+                          : 'bg-zinc-900 border border-zinc-800/80 rounded-tl-sm text-zinc-100 shadow-black/20'
+                      }`}
+                    >
                       {msg.text}
                     </div>
                   </div>
                 );
               })}
               
+              {/* Dynamic Animated Typing Bubble */}
               {isTyping && (
-                <div className="flex items-start max-w-[85%] mt-2">
-                  <div className="bg-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1 items-center h-10">
-                    <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="flex items-start mt-1 animate-message">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3.5 flex gap-1.5 items-center shadow-lg">
+                    <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="h-full flex items-center justify-center text-zinc-500 flex-col gap-4">
-              <span className="text-4xl">👋</span>
-              <p>Выберите историю слева или создайте новую</p>
+            <div className="h-full flex-1 flex items-center justify-center text-zinc-500 flex-col gap-4 text-center">
+              <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-4xl shadow-xl animate-float-subtle">
+                👋
+              </div>
+              <div className="max-w-xs">
+                <h3 className="text-zinc-200 font-bold text-base mb-1">Добро пожаловать в StoryReels Chat!</h3>
+                <p className="text-xs text-zinc-500 leading-relaxed">
+                  Создайте новую страшную или захватывающую переписку в боковой панели слева, либо выберите одну из готовых.
+                </p>
+              </div>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Tap Helper */}
+        {/* Floating Tap Prompt bar */}
         {selectedEpisode && !showPaywall && (
-          <div className="absolute bottom-6 inset-x-0 flex justify-center pointer-events-none">
-            <div className="bg-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-xs font-medium text-white/50 animate-pulse">
-              Нажмите для продолжения
+          <div className="absolute bottom-6 inset-x-0 flex justify-center pointer-events-none z-20">
+            <div className="bg-zinc-950/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-zinc-800 text-xs font-semibold text-zinc-400 shadow-2xl flex items-center gap-2 animate-float-subtle">
+              <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-ping" />
+              Коснитесь экрана для чтения
             </div>
           </div>
         )}
 
-        {/* Paywall Overlay */}
+        {/* Premium Paywall Glassmorphic Overlay */}
         {showPaywall && (
           <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-            {/* Blurred background intercepting taps */}
-            <div className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md" onClick={(e) => e.stopPropagation()} />
             
-            <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 max-w-sm w-full text-center shadow-2xl flex flex-col gap-6" onClick={(e) => e.stopPropagation()}>
-              <div className="w-16 h-16 bg-purple-500/20 text-purple-400 rounded-full flex items-center justify-center mx-auto mb-2">
+            {/* Dark blurred background block */}
+            <div className="absolute inset-0 bg-[#07070a]/70 backdrop-blur-lg transition-all" onClick={(e) => e.stopPropagation()} />
+            
+            <div className="relative bg-zinc-950/90 border border-zinc-800/80 rounded-2xl p-6 md:p-8 max-w-sm w-full text-center shadow-2xl flex flex-col gap-6 animate-modal-enter" onClick={(e) => e.stopPropagation()}>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              {/* Floating Shield/Lock Logo */}
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-purple-400 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-purple-950/20 animate-float-subtle">
                 <span className="text-3xl">🔒</span>
               </div>
+              
               <div>
-                <h3 className="text-xl font-bold text-white mb-2">История обрывается на самом интересном!</h3>
-                <p className="text-sm text-zinc-400 leading-relaxed">
-                  Кульминация уже близко. Узнайте развязку сюжета прямо сейчас.
+                <h3 className="text-xl font-black text-white mb-2 leading-tight tracking-tight">История оборвалась на самом интересном!</h3>
+                <p className="text-xs text-zinc-400 leading-relaxed max-w-xs mx-auto">
+                  Кульминация близка! Узнайте, выживет ли главный герой и чем закончится этот кошмар.
                 </p>
               </div>
-              <button onClick={handlePay} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3.5 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg shadow-purple-500/25">
+
+              {/* Paywall Benefits list */}
+              <div className="bg-zinc-900/50 rounded-xl border border-zinc-800/80 p-3 text-left flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                  <span className="text-purple-400 font-bold text-sm">✓</span> Полный доступ к финалу истории
+                </div>
+                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                  <span className="text-purple-400 font-bold text-sm">✓</span> Чтение в интерактивном темпе
+                </div>
+                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                  <span className="text-purple-400 font-bold text-sm">✓</span> Сохранение в библиотеке навсегда
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <button 
+                onClick={handlePay} 
+                className="w-full bg-gradient-to-r from-purple-600 via-pink-600 to-rose-600 text-white font-bold py-3.5 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-purple-950/50 cursor-pointer text-sm"
+              >
                 Разблокировать за 100 ₽
               </button>
             </div>
           </div>
         )}
 
-      </div>
+      </main>
     </div>
   );
 }
