@@ -422,4 +422,30 @@ body {
   animation: terminal-blink 1s step-end infinite;
 }
 
+/* Telegram theme styles */
+.telegram-bg {
+  background-color: #0e1621;
+  background-image: radial-gradient(#1e2c3a 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.telegram-bubble-in {
+  background-color: #182533;
+  border-radius: 14px 14px 14px 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.telegram-bubble-out {
+  background-color: #2b5278;
+  border-radius: 14px 14px 2px 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.telegram-bubble-out-violet {
+  background-color: #766ac8;
+  border-radius: 14px 14px 2px 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+
 
