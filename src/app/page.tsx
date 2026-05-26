@@ -19,7 +19,9 @@ export default function Home() {
   const [tokenBalance, setTokenBalance] = useState(5);
   const [episodes, setEpisodes] = useState<ChatEpisode[]>(INITIAL_EPISODES);
   const [selectedEpisode, setSelectedEpisode] = useState<ChatEpisode | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  
+  // Mobile-first navigation: "chats" (list of active chats) or "chat" (messages inside selected chat)
+  const [activeMobileView, setActiveMobileView] = useState<"chats" | "chat">("chats");
   
   // Chat mechanics
   const [revealedIndex, setRevealedIndex] = useState(0);
@@ -106,7 +108,6 @@ export default function Home() {
       const data = await response.json();
       setTokenBalance((prev) => Math.max(0, prev - 1));
       setPrompt("");
-      setSidebarOpen(false);
 
       await fetchData(userId);
       
@@ -117,6 +118,7 @@ export default function Home() {
         if (newEp) {
           setSelectedEpisode(newEp);
           setRevealedIndex(0);
+          setActiveMobileView("chat"); // Navigate directly to chat screen
         }
       }
     } catch (err) {
@@ -204,13 +206,13 @@ export default function Home() {
   return (
     <div className="flex h-screen bg-[#0e1621] text-[#f5f5f5] overflow-hidden select-none antialiased font-sans">
       
-      {/* Sidebar - Telegram Chats List Style */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-80 bg-[#17212b] border-r border-[#101921] transform transition-transform duration-300 md:relative md:translate-x-0 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      {/* Chats List Panel (Sidebar) */}
+      <aside className={`w-full md:w-80 flex-shrink-0 bg-[#17212b] border-r border-[#101921] flex flex-col h-full ${activeMobileView === "chat" ? "hidden md:flex" : "flex"}`}>
         
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-[#101921] flex justify-between items-center bg-[#17212b]">
+        <div className="p-4 border-b border-[#101921] flex justify-between items-center bg-[#17212b] min-h-[60px]">
           <div className="flex items-center gap-3">
-            <button className="text-zinc-400 hover:text-white p-1">
+            <button className="text-zinc-400 hover:text-white p-2 min-w-[40px] min-h-[40px] flex items-center justify-center">
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="6" x2="21" y2="6" />
@@ -221,7 +223,7 @@ export default function Home() {
               StoryReels
             </h1>
           </div>
-          <span className="text-[10px] bg-[#766ac8]/20 text-[#8774e1] font-bold px-2 py-0.5 rounded-full border border-[#766ac8]/30">
+          <span className="text-[10px] bg-[#766ac8]/20 text-[#8774e1] font-bold px-2.5 py-1 rounded-full border border-[#766ac8]/30">
             {tokenBalance} токенов
           </span>
         </div>
@@ -230,7 +232,7 @@ export default function Home() {
         <div className="p-4 bg-[#17212b] border-b border-[#101921]">
           <button 
             onClick={handleAddFreeTokens}
-            className="w-full bg-[#766ac8] hover:bg-[#685bb3] text-white text-xs font-semibold py-2 px-4 rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-md"
+            className="w-full bg-[#766ac8] hover:bg-[#685bb3] text-white text-xs font-semibold py-3 px-4 rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer shadow-md min-h-[44px]"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -259,7 +261,7 @@ export default function Home() {
                     key={idx}
                     type="button"
                     onClick={() => setPrompt(cmd.text)}
-                    className="text-[10px] bg-[#17212b] hover:bg-[#202b36] text-zinc-400 hover:text-zinc-200 border border-[#202b36] px-2 py-1.5 rounded-lg text-left transition-all truncate cursor-pointer"
+                    className="text-[10px] bg-[#17212b] hover:bg-[#202b36] text-zinc-400 hover:text-zinc-200 border border-[#202b36] px-2.5 py-2 rounded-lg text-left transition-all truncate cursor-pointer min-h-[38px] flex items-center"
                   >
                     {cmd.label}
                   </button>
@@ -269,7 +271,7 @@ export default function Home() {
 
             <button 
               disabled={isGenerating || !prompt.trim()}
-              className="w-full bg-[#766ac8] hover:bg-[#685bb3] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg text-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+              className="w-full bg-[#766ac8] hover:bg-[#685bb3] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg text-xs transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 min-h-[44px]"
             >
               {isGenerating ? (
                 "Создание..."
@@ -291,7 +293,6 @@ export default function Home() {
               const isSelected = selectedEpisode?.id === ep.id;
               const isLocked = ep.unlockedTillIndex < ep.messages.length;
               
-              // Get last message text as subtitle
               const lastMsgText = ep.messages.length > 0 
                 ? ep.messages[ep.messages.length - 1].text 
                 : "История создана";
@@ -302,9 +303,9 @@ export default function Home() {
                   onClick={() => {
                     setSelectedEpisode(ep);
                     setRevealedIndex(0);
-                    setSidebarOpen(false);
+                    setActiveMobileView("chat"); // Navigate to chat screen on mobile
                   }}
-                  className={`w-full text-left px-4 py-3 border-b border-[#101921] flex items-center gap-3 transition-all cursor-pointer ${
+                  className={`w-full text-left px-4 py-3.5 border-b border-[#101921] flex items-center gap-3 transition-all cursor-pointer min-h-[64px] ${
                     isSelected 
                       ? 'bg-[#2b5278] text-white' 
                       : 'hover:bg-[#202b36] text-zinc-300'
@@ -338,32 +339,33 @@ export default function Home() {
       </aside>
 
       {/* Main Telegram Chat View */}
-      <main className="flex-1 relative flex flex-col h-full bg-[#0e1621] telegram-bg" onClick={handleTap}>
+      <main className={`flex-1 relative flex flex-col h-full bg-[#0e1621] telegram-bg ${activeMobileView === "chats" ? "hidden md:flex" : "flex"}`} onClick={handleTap}>
         
         {/* Telegram Header */}
-        <header className="absolute top-0 inset-x-0 h-14 bg-[#17212b] border-b border-[#101921] z-30 flex items-center justify-between px-4 md:px-6 shadow-sm">
-          <div className="flex items-center gap-3">
+        <header className="absolute top-0 inset-x-0 h-14 bg-[#17212b] border-b border-[#101921] z-30 flex items-center justify-between px-4 shadow-sm min-h-[56px]">
+          <div className="flex items-center gap-2">
+            
+            {/* Back Button on Mobile */}
             <button 
-              className="md:hidden text-zinc-400 hover:text-white p-1" 
-              onClick={(e) => { e.stopPropagation(); setSidebarOpen(true); }}
+              className="md:hidden text-zinc-400 hover:text-white p-2 -ml-2 mr-1 cursor-pointer flex items-center justify-center min-w-[44px] min-h-[44px]" 
+              onClick={(e) => { e.stopPropagation(); setActiveMobileView("chats"); }}
             >
-              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
               </svg>
             </button>
             
             {selectedEpisode ? (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#766ac8] flex items-center justify-center font-bold text-xs text-white font-display">
+                <div className="w-9 h-9 rounded-full bg-[#766ac8] flex items-center justify-center font-bold text-xs text-white font-display flex-shrink-0">
                   {interlocutorName.substring(0, 1).toUpperCase()}
                 </div>
                 <div>
                   <h2 className="text-xs md:text-sm font-bold text-white tracking-wide">
                     {interlocutorName}
                   </h2>
-                  <span className="text-[10px] text-[#766ac8]">
+                  <span className="text-[10px] text-[#8774e1] block leading-none mt-0.5">
                     {isTyping ? "печатает..." : "в сети"}
                   </span>
                 </div>
@@ -375,21 +377,21 @@ export default function Home() {
             )}
           </div>
 
-          {/* Call / Action Buttons */}
+          {/* Action Buttons */}
           {selectedEpisode && (
-            <div className="flex items-center gap-4 text-zinc-400">
-              <button className="hover:text-white transition-all cursor-pointer">
+            <div className="flex items-center gap-2 md:gap-4 text-zinc-400">
+              <button className="hover:text-white p-2 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
               </button>
-              <button className="hover:text-white transition-all cursor-pointer">
+              <button className="hover:text-white p-2 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8" />
                   <line x1="21" y1="21" x2="16.65" y2="16.65" />
                 </svg>
               </button>
-              <button className="hover:text-white transition-all cursor-pointer">
+              <button className="hover:text-white p-2 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="1" />
                   <circle cx="12" cy="5" r="1" />
@@ -410,7 +412,6 @@ export default function Home() {
               
               {selectedEpisode.messages.slice(0, revealedIndex + 1).map((msg, idx) => {
                 const isMe = msg.sender === "Ты";
-                // Formatting standard Telegram timestamps
                 const pseudoTime = `12:${String(10 + idx).padStart(2, '0')}`;
                 
                 return (
@@ -419,7 +420,7 @@ export default function Home() {
                     className={`flex w-full mb-1 ${isMe ? 'justify-end' : 'justify-start'} animate-message`}
                   >
                     <div 
-                      className={`px-3.5 py-2.5 max-w-[75%] text-[13px] relative flex flex-col leading-relaxed ${
+                      className={`px-3.5 py-2.5 max-w-[85%] md:max-w-[75%] text-[13px] relative flex flex-col leading-relaxed ${
                         isMe 
                           ? 'telegram-bubble-out-violet text-white' 
                           : 'telegram-bubble-in text-[#f5f5f5]'
@@ -448,7 +449,7 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <div className="h-full flex-1 flex items-center justify-center text-zinc-500 flex-col gap-4 text-center">
+            <div className="h-full flex-1 flex items-center justify-center text-zinc-500 flex-col gap-4 text-center px-4">
               <div className="w-14 h-14 rounded-2xl bg-[#17212b] border border-[#101921] flex items-center justify-center shadow-lg">
                 <svg className="w-6 h-6 text-[#766ac8]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -469,22 +470,22 @@ export default function Home() {
         {/* Telegram-style Input Overlay for Tap Interaction */}
         {selectedEpisode && !showPaywall && (
           <div className="absolute bottom-4 inset-x-0 max-w-xl mx-auto px-4 z-20" onClick={(e) => { e.stopPropagation(); handleTap(); }}>
-            <div className="bg-[#17212b] border border-[#101921] rounded-full p-2 flex items-center gap-3 cursor-pointer shadow-lg active:scale-[0.99] transition-all">
+            <div className="bg-[#17212b] border border-[#101921] rounded-full p-2 flex items-center gap-3 cursor-pointer shadow-lg active:scale-[0.99] transition-all min-h-[48px]">
               
               {/* Paperclip attachment icon */}
-              <button className="text-zinc-400 hover:text-white p-1 ml-1 cursor-pointer">
+              <button className="text-zinc-400 hover:text-white p-2 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                 </svg>
               </button>
               
-              {/* Dummy text area looking like TG typing zone */}
+              {/* Dummy text area */}
               <div className="flex-1 text-xs text-zinc-500 select-none truncate">
                 Нажмите для продолжения переписки...
               </div>
 
               {/* Emoji icon */}
-              <button className="text-zinc-400 hover:text-white p-1 cursor-pointer">
+              <button className="text-zinc-400 hover:text-white p-2 min-w-[40px] min-h-[40px] flex items-center justify-center cursor-pointer">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M8 14s1.5 2 4 2 4-2 4-2" />
@@ -493,8 +494,8 @@ export default function Home() {
                 </svg>
               </button>
 
-              {/* Telegram Send Button */}
-              <button className="w-8 h-8 rounded-full bg-[#766ac8] hover:bg-[#685bb3] text-white flex items-center justify-center cursor-pointer shadow-md flex-shrink-0">
+              {/* Send Button */}
+              <button className="w-8 h-8 rounded-full bg-[#766ac8] hover:bg-[#685bb3] text-white flex items-center justify-center cursor-pointer shadow-md flex-shrink-0 min-w-[32px] min-h-[32px]">
                 <svg className="w-4 h-4 transform rotate-45 mr-0.5 mt-[-1px]" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
                 </svg>
@@ -508,7 +509,7 @@ export default function Home() {
         {showPaywall && (
           <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
             
-            <div className="absolute inset-0 bg-[#0e1621]/90 backdrop-blur-md transition-all" onClick={(e) => e.stopPropagation()} />
+            <div className="absolute inset-0 bg-[#0e1621]/95 backdrop-blur-md transition-all" onClick={(e) => e.stopPropagation()} />
             
             <div className="relative bg-[#17212b] border border-[#202b36] rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl flex flex-col gap-5 animate-modal-enter" onClick={(e) => e.stopPropagation()}>
               
@@ -554,7 +555,7 @@ export default function Home() {
               {/* Pay button */}
               <button 
                 onClick={handlePay} 
-                className="w-full bg-[#766ac8] hover:bg-[#685bb3] text-white font-semibold py-3 rounded-xl transition-all cursor-pointer text-xs uppercase tracking-wider font-display shadow-md active:scale-[0.98]"
+                className="w-full bg-[#766ac8] hover:bg-[#685bb3] text-white font-semibold py-3.5 rounded-xl transition-all cursor-pointer text-xs uppercase tracking-wider font-display shadow-md active:scale-[0.98] min-h-[44px]"
               >
                 Разблокировать за 100 ₽
               </button>
