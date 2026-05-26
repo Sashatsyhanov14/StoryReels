@@ -3,2274 +3,310 @@
 import React, { useState, useEffect, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { supabase } from "@/lib/supabase-client";
+import { ChatEpisode, ChatMessage } from "@/lib/chat-types";
 import { Icons } from "@/components/icons";
-import { AnimatedSubtitles } from "@/components/AnimatedSubtitles";
-import { EpisodePlayer } from "@/components/EpisodePlayer";
 
-interface Scene {
-  imageUrl: string;
-  audioUrl: string;
-  text: string;
-  imagePrompt: string;
-  cameraEffect?: string;
-  transition?: string;
-}
-
-interface Episode {
-  id: string;
-  title: string;
-  prompt: string;
-  status: "pending" | "ready" | "failed";
-  scenes: Scene[];
-  createdAt: string;
-  progress?: number;
-  step?: "idle" | "script" | "keyframes" | "voiceover" | "compiling";
-  showId?: string;
-}
-
-interface Show {
-  id: string;
-  title: string;
-  created_at: string;
-}
-
-const PRESET_PROMPTS = [
-  {
-    title: "Киберпанк Детектив",
-    emoji: "🕵️‍♂️",
-    prompt: "Киберпанк-детектив, выслеживающий цифрового призрака на залитых неоном дождливых улочках Нео-Токио. 16-bit JRPG стиль.",
-    color: "from-fuchsia-600 to-pink-600",
-    theme: "cyberpunk",
-    chips: ["Открыть металлическую дверь", "Сбежать через окно", "Подключиться к терминалу"],
-  },
-  {
-    title: "Космическая Одиссея",
-    emoji: "🚀",
-    prompt: "Исследователь, открывающий гигантское светящееся кристаллическое сооружение на далекой планете. 16-bit JRPG стиль.",
-    color: "from-cyan-500 to-blue-600",
-    theme: "space",
-    chips: ["Исследовать кристалл", "Выйти в открытый космос", "Запустить гипердвигатель"],
-  },
-  {
-    title: "Кошачий Король",
-    emoji: "👑",
-    prompt: "Король Лев-Кот в черной мантии, стоящий на троне, пока другие коты-крестьяне кланяются ему. 16-bit JRPG стиль.",
-    color: "from-amber-500 to-orange-600",
-    theme: "kingdom",
-    chips: ["Объявить налог на рыбу", "Отправить рыцарей в поход", "Принять дары крестьян"],
-  },
-  {
-    title: "Закат в стиле Синтвейв",
-    emoji: "🌅",
-    prompt: "Ретро-футуристический спорткар, мчащийся к гигантскому светящемуся солнцу по розовому шоссе. 16-bit JRPG стиль.",
-    color: "from-rose-500 to-purple-600",
-    theme: "retro",
-    chips: ["Врубить нитро-ускорение", "Резко свернуть на обочину", "Продолжать гнать вперед"],
-  },
-];
-
-const INITIAL_EPISODES: Episode[] = [
-  {
-    id: "ep-1",
-    title: "Загадка Нео-Токио",
-    prompt: "Киберпанк-детектив, выслеживающий цифрового призрака на залитых неоном дождливых улочках Нео-Токио.",
-    status: "ready",
-    createdAt: "10 мин. назад",
-    scenes: [
-      {
-        imageUrl: "https://images.unsplash.com/photo-1578894381163-e72c17f2d45f?auto=format&fit=crop&w=600&q=80",
-        audioUrl: "#",
-        text: "Неоновые огни Нео-Токио пробивались сквозь бесконечный дождь, освещая город, построенный на секретах.",
-        imagePrompt: "16-bit pixel art style, retro JRPG aesthetic, cyberpunk neon noir rainy alleyways",
-        cameraEffect: "zoom-out-slow",
-      },
-      {
-        imageUrl: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80",
-        audioUrl: "#",
-        text: "Детектив Каэль сканировал цифровые следы, оставленные неуловимым фантомным кодером.",
-        imagePrompt: "16-bit pixel art style, retro JRPG aesthetic, cyberpunk detective examining glowing holographic clues",
-        cameraEffect: "pan-right",
-      },
-      {
-        imageUrl: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80",
-        audioUrl: "#",
-        text: "Глубоко в недрах Района 9 массивный серверный стек пульсировал искусственной жизнью.",
-        imagePrompt: "16-bit pixel art style, retro JRPG aesthetic, futuristic server room with green and red laser grids",
-        cameraEffect: "camera-shake",
-      },
-    ],
-  },
-];
+const INITIAL_EPISODES: ChatEpisode[] = [];
 
 export default function Home() {
-  const [prompt, setPrompt] = useState("");
   const [userId, setUserId] = useState("");
   const [tokenBalance, setTokenBalance] = useState(5);
-  const [episodes, setEpisodes] = useState<Episode[]>(INITIAL_EPISODES);
-  const [shows, setShows] = useState<Show[]>([]);
-  const [activeShowId, setActiveShowId] = useState<string | null>(null);
-  const [isRegistered, setIsRegistered] = useState(true);
-  const [email, setEmail] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-
-  // 5 Screens state machine
-  // 'landing' | 'auth_sheet' | 'generating' | 'paywall' | 'player'
-  const [currentScreen, setCurrentScreen] = useState<
-    "landing" | "auth_sheet" | "generating" | "paywall" | "player"
-  >("player");
-  
+  const [episodes, setEpisodes] = useState<ChatEpisode[]>(INITIAL_EPISODES);
+  const [selectedEpisode, setSelectedEpisode] = useState<ChatEpisode | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showPromptDrawer, setShowPromptDrawer] = useState(false);
-  const [showDemoPayPrompt, setShowDemoPayPrompt] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(true);
 
-  // Real-time generator states
+  // Chat mechanics
+  const [revealedIndex, setRevealedIndex] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // New episode creation
+  const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [genStep, setGenStep] = useState<"idle" | "script" | "keyframes" | "voiceover" | "compiling">("idle");
-  const [generationProgress, setGenerationProgress] = useState(0);
-  const [createdEpisodeId, setCreatedEpisodeId] = useState<string | null>(null);
-  const [pendingScenes, setPendingScenes] = useState<Scene[]>([]);
-
-  // Simulation loader states
-  const [loaderText, setLoaderText] = useState("Подключение к GPU...");
-  const [simulationProgress, setSimulationProgress] = useState(0);
-
-  // Player controls
-  const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(INITIAL_EPISODES[0]);
-  const [activeSceneIndex, setActiveSceneIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [transitionClass, setTransitionClass] = useState("");
-  const [showChatController, setShowChatController] = useState(false);
-  const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState<Array<{ sender: "ai" | "user"; text: string }>>([
-    { sender: "ai", text: "Сюжет оборвался на самом интересном месте! Выберите продолжение или введите свой вариант:" }
-  ]);
-
-  const advanceToNextSceneRef = useRef<() => void>(() => {});
-  const resumeGenerationRef = useRef<((episodeId: string, userId: string, scenes: Scene[]) => Promise<void>) | undefined>(undefined);
-
-  // Active scene timer for progress bars
-  const [sceneProgress, setSceneProgress] = useState(0);
-  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
+    // Auth & Init
+    const initAuth = async () => {
+      let savedUserId = localStorage.getItem("storyreels_user_id");
+      if (!savedUserId || savedUserId.startsWith("usr_")) {
+        savedUserId = uuidv4();
+        localStorage.setItem("storyreels_user_id", savedUserId);
+      }
+      setUserId(savedUserId);
+      fetchData(savedUserId);
     };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    initAuth();
   }, []);
 
-  // Check auth session on load
-  useEffect(() => {
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        setIsRegistered(true);
-        setUserId(session.user.email || session.user.id);
-      }
-    };
-    checkSession();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setIsRegistered(true);
-        setUserId(session.user.email || session.user.id);
-      } else {
-        setIsRegistered(true);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Sync user and fetch episodes on mount
-  useEffect(() => {
-    let savedUserId = localStorage.getItem("storyreels_user_id");
-
-    if (!savedUserId || savedUserId.startsWith("usr_")) {
-      savedUserId = uuidv4();
-      localStorage.setItem("storyreels_user_id", savedUserId);
-    }
-    // Use queueMicrotask to avoid synchronous setState in effect body
-    queueMicrotask(() => setUserId(savedUserId));
-
-    const syncUser = async () => {
-      try {
-        const response = await fetch("/api/users", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: savedUserId }),
-        });
-        const data = await response.json();
-        if (data.tokenBalance !== undefined) {
-          setTokenBalance(data.tokenBalance);
-        }
-      } catch (err) {
-        console.error("Error syncing user:", err);
-      }
-    };
-
-    const fetchEpisodes = async () => {
-      try {
-        const response = await fetch(`/api/episodes?userId=${savedUserId}`);
-        const data = await response.json();
-        
-        if (data.shows) {
-          setShows(data.shows);
-        }
-
-        if (data.episodes && data.episodes.length > 0) {
-          setEpisodes(data.episodes);
-          const pendingEpisode = data.episodes.find((ep: Episode) => ep.status === "pending");
-          if (pendingEpisode) {
-            setSelectedEpisode(pendingEpisode);
-            setCreatedEpisodeId(pendingEpisode.id);
-            setPendingScenes(pendingEpisode.scenes);
-            setIsGenerating(true);
-            setCurrentScreen("player");
-            resumeGenerationRef.current?.(pendingEpisode.id, savedUserId || "", pendingEpisode.scenes);
-          } else {
-            setSelectedEpisode(data.episodes[0]);
-          }
-        }
-      } catch (err) {
-        console.error("Error fetching episodes:", err);
-      }
-    };
-
-    syncUser();
-    fetchEpisodes();
-  }, []);
-
-  // Set advanceToNextSceneRef implementation
-  useEffect(() => {
-    advanceToNextSceneRef.current = () => {
-      if (!selectedEpisode || selectedEpisode.scenes.length === 0) return;
-      const currentScene = selectedEpisode.scenes[activeSceneIndex];
-      const transitionType = currentScene?.transition || "cross-fade";
-
-      setTransitionClass(transitionType);
-
-      setTimeout(() => {
-        if (activeSceneIndex >= selectedEpisode.scenes.length - 1) {
-          setIsPlaying(false);
-          setShowChatController(true);
-          setSceneProgress(100);
-        } else {
-          setActiveSceneIndex((prev) => prev + 1);
-          setSceneProgress(0);
-        }
-      }, 250);
-
-      setTimeout(() => {
-        setTransitionClass("");
-      }, 500);
-    };
-  }, [selectedEpisode, activeSceneIndex]);
-
-  // Auth Action handlers
-  const handleOAuthLogin = async (provider: "google" | "vk") => {
+  const fetchData = async (currentUserId: string) => {
     try {
-      setAuthLoading(true);
-      await supabase.auth.signInWithOAuth({
-        provider: provider as "google",
-        options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : "",
-        },
-      });
-    } catch (error) {
-      console.error(error);
-      alert("Ошибка при входе через " + provider);
-      setAuthLoading(false);
-    }
-  };
-
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    try {
-      setAuthLoading(true);
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: typeof window !== "undefined" ? window.location.origin : "",
-        },
-      });
-      if (error) throw error;
-      alert("Волшебная ссылка отправлена на " + email + ". Проверьте почту!");
-      setEmail("");
-    } catch (error) {
-      console.error(error);
-      alert("Ошибка отправки Magic Link");
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleTelegramLogin = () => {
-    setAuthLoading(true);
-    setTimeout(() => {
-      setIsRegistered(true);
-      setTokenBalance((prev) => prev + 10);
-      setAuthLoading(false);
-      // Close sheet and proceed
-      startGenerationFlow();
-    }, 1200);
-  };
-
-  // Switch to Auth Bottom Sheet or trigger directly if registered
-  const handleStartGeneration = (customPrompt?: string) => {
-    const activePrompt = customPrompt || prompt;
-    if (!activePrompt.trim()) return;
-
-    // Auth bypassed for UI prototyping
-    startGenerationFlow(activePrompt);
-  };
-
-  // Start Screen 3 (loader bypassed) & backend insert
-  const startGenerationFlow = async (activePrompt?: string) => {
-    const finalPrompt = activePrompt || prompt;
-    if (!finalPrompt.trim()) return;
-
-    // Bypassed balance restriction for UI testing - auto-refills in DB as well
-    if (tokenBalance < 1) {
-      try {
-        const refillResponse = await fetch("/api/users", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, addTokens: 10 }),
-        });
-        if (refillResponse.ok) {
-          const refillData = await refillResponse.json();
-          setTokenBalance(refillData.tokenBalance || 10);
-        }
-      } catch (err) {
-        console.error("Refill tokens error:", err);
-      }
-    }
-
-    setIsGenerating(true);
-
-    try {
-      // 1. Create episode record in DB (generates script outline, costs 1 token)
-      const response = await fetch("/api/episodes/create", {
+      // Sync user
+      const response = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, prompt: finalPrompt, showId: activeShowId }),
+        body: JSON.stringify({ userId: currentUserId }),
       });
+      const data = await response.json();
+      if (data.tokenBalance !== undefined) setTokenBalance(data.tokenBalance);
 
-      if (!response.ok) {
-        const text = await response.text().catch(() => "");
-        let errorMessage = "Не удалось запустить создание эпизода";
-        try {
-          const errData = JSON.parse(text);
-          errorMessage = errData.error || errorMessage;
-        } catch {
-          if (text) errorMessage = text;
+      // Fetch episodes
+      const epResponse = await fetch(`/api/episodes?userId=${currentUserId}`);
+      const epData = await epResponse.json();
+      if (epData.episodes) {
+        setEpisodes(epData.episodes);
+        if (epData.episodes.length > 0 && !selectedEpisode) {
+          setSelectedEpisode(epData.episodes[0]);
+          setRevealedIndex(0);
         }
-        throw new Error(errorMessage);
       }
-
-      const responseText = await response.text();
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (err) {
-        throw new Error(`Невалидный ответ сервера (ожидался JSON): ${responseText.substring(0, 150)}...`);
-      }
-      const episodeId = data.episodeId;
-      const scenes = data.scenes;
-
-      setCreatedEpisodeId(episodeId);
-      setPendingScenes(scenes);
-      setTokenBalance((prev) => Math.max(0, prev - 1));
-      setPrompt("");
-      setShowPromptDrawer(false);
-
-      // Create a temporary Episode object so we can show it immediately in the player
-      const tempEpisode: Episode = {
-        id: episodeId,
-        title: `Серия ${episodes.filter(ep => ep.showId === activeShowId).length + 1}`,
-        prompt: finalPrompt,
-        status: "pending",
-        scenes: scenes,
-        createdAt: new Date().toISOString(),
-        showId: activeShowId || undefined
-      };
-
-      setEpisodes(prev => [tempEpisode, ...prev]);
-      setSelectedEpisode(tempEpisode);
-      setActiveSceneIndex(0);
-      setShowChatController(false);
-      setIsPlaying(false);
-
-      // 2. Switch to generating screen (live stream generation)
-      setCurrentScreen("generating");
-
-      // 3. Generate scenes immediately
-      resumeGeneration(episodeId, userId, scenes);
-
     } catch (err) {
       console.error(err);
-      alert(`Ошибка инициализации: ${err instanceof Error ? err.message : String(err)}`);
-      setCurrentScreen("landing");
-      setIsGenerating(false);
     }
   };
 
-  // Triggered when paywall is paid. Resumes rendering batches.
-  const handlePayActivation = async () => {
-    if (!createdEpisodeId || !pendingScenes.length) {
-      // Fallback if DB insert didn't finish yet or failed
-      alert("Пожалуйста, подождите завершения инициализации...");
+  const handleStartGeneration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prompt.trim() || isGenerating) return;
+    if (tokenBalance < 1) {
+      alert("Недостаточно токенов!");
       return;
     }
 
-    setShowDemoPayPrompt(true); // Show checkout overlay
-    
-    // Simulate short payment processing (1.5s)
-    setTimeout(async () => {
-      setShowDemoPayPrompt(false);
-      
-      // Proceed to render scenes (run actual flux models)
-      setCurrentScreen("generating");
-      setLoaderText("Запуск рендеринга Flux...");
-      
-      // Animate progress from 89% to 99%
-      let prog = 89;
-      const progressTimer = setInterval(() => {
-        prog = Math.min(99, prog + 1);
-        setSimulationProgress(prog);
-        if (prog >= 99) clearInterval(progressTimer);
-      }, 300);
-
-      // Start actual scene generation batch loops
-      await resumeGeneration(createdEpisodeId, userId, pendingScenes);
-      
-      clearInterval(progressTimer);
-      setSimulationProgress(100);
-      setLoaderText("Рендеринг завершен!");
-
-      // Transition to player after a small delay
-      setTimeout(() => {
-        setCurrentScreen("player");
-        setIsGenerating(false);
-      }, 500);
-
-    }, 1500);
-  };
-
-  // Actual scene rendering — sequential, one scene at a time
-  const resumeGeneration = async (episodeId: string, currentUserId: string, scenes: Scene[]) => {
+    setIsGenerating(true);
     try {
-      const totalScenes = scenes.length;
-
-      for (let i = 0; i < totalScenes; i++) {
-        // Update progress UI
-        const currentProgress = Math.min(98, Math.round((i / totalScenes) * 100));
-        setSimulationProgress(currentProgress);
-
-        // Generate one scene at a time
-        const response = await fetch("/api/episodes/generate-scene", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ episodeId, sceneIndex: i }),
-        });
-
-        if (!response.ok) {
-          const text = await response.text().catch(() => "");
-          let errorMessage = `Ошибка при генерации сцены ${i + 1}`;
-          try {
-            const errData = JSON.parse(text);
-            errorMessage = errData.error || errorMessage;
-          } catch {
-            if (text) errorMessage = text;
-          }
-          throw new Error(errorMessage);
-        }
-
-        const responseText = await response.text();
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (err) {
-          throw new Error(`Невалидный ответ сцены ${i + 1} (ожидался JSON): ${responseText.substring(0, 150)}...`);
-        }
-
-        // Update the selected episode's scenes with the generated scene data
-        if (data.generatedScene && !data.skipped) {
-          setSelectedEpisode((prev) => {
-            if (!prev || prev.id !== episodeId) return prev;
-            const updatedScenes = [...prev.scenes];
-            updatedScenes[i] = {
-              ...updatedScenes[i],
-              ...data.generatedScene,
-            };
-            return { ...prev, scenes: updatedScenes };
-          });
-        }
-
-        setSimulationProgress(data.progress || currentProgress);
-
-        // If all scenes are done, break early
-        if (data.isCompleted) {
-          break;
-        }
-      }
-
-      // Final sync: fetch the complete episode state from DB
-      const syncResponse = await fetch(`/api/episodes?userId=${currentUserId}`);
-      if (syncResponse.ok) {
-        const syncData = await syncResponse.json();
-        const episodesList: Episode[] = syncData.episodes || [];
-        setEpisodes(episodesList);
-
-        const finishedEp = episodesList.find((ep) => ep.id === episodeId);
-        if (finishedEp) {
-          setSelectedEpisode(finishedEp);
-        }
-      }
-
-      setSimulationProgress(100);
-      setIsGenerating(false);
-      setCurrentScreen("player");
-      setIsPlaying(true);
-      setShowChatController(false);
-      setActiveSceneIndex(0);
-    } catch (err) {
-      console.error("Scene generation failed:", err);
-
-      // Mark episode as failed in DB
-      await fetch("/api/episodes/fail", {
+      const response = await fetch("/api/episodes/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ episodeId }),
-      }).catch(console.error);
+        body: JSON.stringify({ userId, prompt }),
+      });
 
-      // Refresh episodes list
-      try {
-        const response = await fetch(`/api/episodes?userId=${currentUserId}`);
-        if (response.ok) {
-          const data = await response.json();
-          setEpisodes(data.episodes || []);
+      if (!response.ok) throw new Error("Ошибка генерации истории");
 
-          const failedEp = (data.episodes || []).find((ep: Episode) => ep.id === episodeId);
-          if (failedEp) {
-            setSelectedEpisode(failedEp);
-          }
+      const data = await response.json();
+      setTokenBalance((prev) => Math.max(0, prev - 1));
+      setPrompt("");
+      setSidebarOpen(false);
+
+      // Reload episodes
+      await fetchData(userId);
+      
+      // Auto-select new episode
+      const updatedRes = await fetch(`/api/episodes?userId=${userId}`);
+      const updatedData = await updatedRes.json();
+      if (updatedData.episodes && updatedData.episodes.length > 0) {
+        const newEp = updatedData.episodes.find((ep: any) => ep.id === data.episodeId);
+        if (newEp) {
+          setSelectedEpisode(newEp);
+          setRevealedIndex(0);
         }
-      } catch { /* ignore sync error */ }
-
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Ошибка при создании истории.");
+    } finally {
       setIsGenerating(false);
     }
   };
 
-  // Keep ref in sync so the mount-effect can call this function
-  useEffect(() => {
-    resumeGenerationRef.current = resumeGeneration;
-  });
+  const handleTap = () => {
+    if (!selectedEpisode || isTyping || showPaywall) return;
+    
+    const messages = selectedEpisode.messages;
+    if (revealedIndex >= messages.length - 1) return; // End of story
+    
+    // Check Cliffhanger block
+    const currentMsg = messages[revealedIndex];
+    if (revealedIndex >= selectedEpisode.unlockedTillIndex && currentMsg.isCliffhanger) {
+      setShowPaywall(true);
+      return;
+    }
 
-  const handleTopUp = async () => {
+    const nextMsg = messages[revealedIndex + 1];
+    
+    if (nextMsg.typingDelayMs > 0) {
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        setRevealedIndex((prev) => prev + 1);
+        scrollToBottom();
+      }, nextMsg.typingDelayMs);
+    } else {
+      setRevealedIndex((prev) => prev + 1);
+      scrollToBottom();
+    }
+  };
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      chatContainerRef.current?.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }, 50);
+  };
+
+  const handlePay = async () => {
+    if (!selectedEpisode) return;
     try {
       const response = await fetch("/api/yookassa/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ userId, episodeId: selectedEpisode.id }),
       });
       const data = await response.json();
       
       if (data.confirmation_url) {
-        window.open(data.confirmation_url, "_blank");
-
-        let attempts = 0;
-        const interval = setInterval(async () => {
-          attempts++;
-          const res = await fetch("/api/users", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId }),
-          });
-          const userData = await res.json();
-          if (userData.tokenBalance > tokenBalance || attempts > 20) {
-            setTokenBalance(userData.tokenBalance);
-            clearInterval(interval);
-          }
-        }, 3000);
+        window.location.href = data.confirmation_url;
       } else {
-        // Mock fallback for sandbox
-        const addRes = await fetch("/api/users", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, addTokens: 5 }),
+        // Mock unlock for sandbox
+        alert("Оплата прошла успешно! (Песочница)");
+        setShowPaywall(false);
+        
+        // Update local episode logic to unlock everything
+        setSelectedEpisode({
+          ...selectedEpisode,
+          unlockedTillIndex: selectedEpisode.messages.length
         });
-        const addData = await addRes.json();
-        if (addData.tokenBalance !== undefined) {
-          setTokenBalance(addData.tokenBalance);
-          alert(" Sandbox: Начислено +5 токенов в Supabase!");
-        }
+        
+        // Tap to show next automatically
+        setTimeout(() => setRevealedIndex(prev => prev + 1), 100);
       }
     } catch (err) {
-      console.error("Top up failed:", err);
-      setTokenBalance((prev) => prev + 5);
-      alert("Начислено +5 токенов (клиентский демо-режим)!");
+      console.error("Payment failed", err);
+      alert("Ошибка платежа");
     }
-  };
-
-  // Continue story from chat controller in Screen 4
-  const handleChatSubmit = (e?: React.FormEvent, customText?: string) => {
-    if (e) e.preventDefault();
-    const messageText = customText || chatInput;
-    if (!messageText.trim()) return;
-
-    // Add user message to chat state
-    setChatMessages((prev) => [...prev, { sender: "user", text: messageText }]);
-    setChatInput("");
-
-    // Initiate next episode creation using the chat choice as the prompt
-    setTimeout(() => {
-      // Clear previous chat messages for the new episode flow
-      setChatMessages([
-        { sender: "ai", text: "Сюжет оборвался на самом интересном месте! Выберите продолжение или введите свой вариант:" }
-      ]);
-      handleStartGeneration(messageText);
-    }, 800);
-  };
-
-  // Get active preset prompt options for the chat controller
-  const getActiveChips = () => {
-    if (!selectedEpisode) return ["Идти вперед", "Осмотреться", "Бежать назад"];
-    const foundPreset = PRESET_PROMPTS.find((p) =>
-      selectedEpisode.prompt.toLowerCase().includes(p.theme)
-    );
-    return foundPreset ? foundPreset.chips : ["Искать другой выход", "Идти на таран", "Сдаться"];
-  };
-
-  // Screen click handles — toggle play/pause (video-like behavior)
-  const handlePlayerScreenClick = (_e: React.MouseEvent<HTMLDivElement>) => {
-    // Standard video behavior: tap anywhere on the video toggles play/pause
-    if (showChatController) return;
-    setIsPlaying((prev) => !prev);
-  };
-
-  // A beautiful loader screen for the generation state
-  const renderGeneratingLoader = () => {
-    const doneCount = selectedEpisode?.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length || 0;
-    const totalCount = selectedEpisode?.scenes.length || 12;
-    const progressPercent = Math.min(100, Math.round((doneCount / totalCount) * 100));
-
-    let progressMessage = "Инициализация видеодвижка...";
-    if (progressPercent === 100) {
-      progressMessage = "Сборка видео завершена! Открываем плеер...";
-    } else if (doneCount > 0) {
-      progressMessage = `Создаем сцену ${doneCount + 1} из ${totalCount}...`;
-    } else {
-      progressMessage = "Сценарист пишет сюжет и промпты...";
-    }
-
-    return (
-      <div className="h-full w-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-950 via-zinc-950 to-black text-white flex flex-col items-center justify-start p-4 md:p-6 overflow-y-auto select-none animate-fade-in scrollbar-none">
-        {/* Glowing Header badge */}
-        <div className="mt-4 mb-6 flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 px-4 py-2 rounded-full shadow-[0_0_15px_rgba(168,85,247,0.1)]">
-          <span className="h-2 w-2 rounded-full bg-purple-500 animate-ping"></span>
-          <span className="text-[10px] font-mono font-black tracking-wider uppercase text-purple-400">
-            ИИ-Режиссер: Генерация Reels
-          </span>
-        </div>
-
-        {/* Top Section: Radial Progress & Global Info */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-8 w-full max-w-2xl bg-zinc-900/30 border border-zinc-800/40 p-5 rounded-3xl backdrop-blur-md">
-          {/* Circular Progress */}
-          <div className="relative flex items-center justify-center shrink-0">
-            <div className="absolute inset-0 bg-purple-500/5 blur-3xl rounded-full"></div>
-            <svg className="w-32 h-32 transform -rotate-90 z-10">
-              <circle
-                cx="64"
-                cy="64"
-                r={48}
-                className="stroke-zinc-900"
-                strokeWidth="6"
-                fill="transparent"
-              />
-              <circle
-                cx="64"
-                cy="64"
-                r={48}
-                className="stroke-purple-500 transition-all duration-500 ease-out"
-                strokeWidth="6"
-                strokeDasharray={2 * Math.PI * 48}
-                strokeDashoffset={2 * Math.PI * 48 - (progressPercent / 100) * (2 * Math.PI * 48)}
-                strokeLinecap="round"
-                fill="transparent"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
-              <span className="text-2xl font-black font-mono tracking-tight text-white">
-                {progressPercent}%
-              </span>
-              <span className="text-[8px] text-zinc-500 font-mono font-bold uppercase tracking-wider mt-0.5">
-                {doneCount}/{totalCount} кадров
-              </span>
-            </div>
-          </div>
-
-          {/* Text Status */}
-          <div className="text-center sm:text-left flex-1">
-            <h3 className="text-base font-black text-white tracking-wide mb-1 animate-pulse duration-1000">
-              {progressMessage}
-            </h3>
-            <p className="text-[11px] text-zinc-400 leading-relaxed font-medium mb-3">
-              Идет параллельный рендеринг 16-bit JRPG графики и синтез голоса. Кадры подгружаются в реальном времени.
-            </p>
-            {/* Tiny text log of current action */}
-            <div className="inline-flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-md border border-zinc-800/50">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
-              <span className="text-[9px] font-mono text-zinc-500">
-                Текущее действие: <span className="text-purple-300 font-bold">{doneCount < totalCount ? `Отрисовка кадра ${doneCount + 1}...` : "Финальный рендеринг видео"}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Real-time Storyboard Grid! */}
-        <div className="w-full max-w-4xl mb-8">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <span className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-widest">Раскадровка Reels</span>
-            <span className="text-[9px] text-purple-400 font-bold font-mono">{progressPercent === 100 ? "Готово к просмотру" : "Рендеринг в реальном времени..."}</span>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {selectedEpisode?.scenes.map((scene, idx) => {
-              const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
-              const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
-
-              return (
-                <div 
-                  key={idx} 
-                  className={`relative aspect-[9/16] rounded-xl overflow-hidden border transition-all duration-300 flex flex-col items-center justify-center p-2 text-center group ${
-                    isDone 
-                      ? "border-purple-500/40 bg-zinc-900 shadow-[0_0_15px_rgba(168,85,247,0.1)]" 
-                      : isCurrent 
-                        ? "border-purple-500/60 bg-purple-950/20 animate-pulse" 
-                        : "border-zinc-900 bg-zinc-950/40 opacity-40"
-                  }`}
-                >
-                  {/* Background / Preview */}
-                  {isDone ? (
-                    <>
-                      <img 
-                        src={scene.imageUrl} 
-                        alt={`Кадр ${idx + 1}`}
-                        className="absolute inset-0 w-full h-full object-cover z-0 group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {/* Dark overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 z-10"></div>
-                      
-                      {/* Content */}
-                      <div className="absolute inset-0 p-2.5 flex flex-col justify-between z-20 text-left">
-                        <span className="bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-mono text-emerald-400 border border-emerald-500/20 w-fit">
-                          Кадр {idx + 1}
-                        </span>
-                        <div>
-                          <p className="text-[8px] text-zinc-300 line-clamp-2 font-medium leading-tight mb-1">
-                            {scene.text}
-                          </p>
-                          <div className="flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            <span className="text-[7px] font-mono text-emerald-400 uppercase font-black tracking-widest">Готов</span>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  ) : isCurrent ? (
-                    <div className="flex flex-col items-center justify-center p-2 z-10">
-                      {/* Circular active spinner */}
-                      <div className="relative mb-3 flex items-center justify-center">
-                        <div className="absolute w-8 h-8 rounded-full border border-purple-500/20"></div>
-                        <div className="w-8 h-8 rounded-full border-t-2 border-purple-500 animate-spin"></div>
-                      </div>
-                      <span className="bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded text-[8px] font-mono border border-purple-500/30 mb-2">
-                        Кадр {idx + 1}
-                      </span>
-                      <span className="text-[8px] text-purple-300 font-bold uppercase tracking-widest animate-pulse">Рендер...</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center p-2 z-10 text-zinc-700">
-                      <span className="text-xl font-mono font-black mb-1">#{idx + 1}</span>
-                      <span className="text-[8px] font-mono uppercase tracking-wider">В очереди</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* AI Console Logs Box */}
-        <div className="w-full max-w-2xl bg-black/60 border border-zinc-900 rounded-2xl p-4 font-mono text-[10px] text-zinc-400 max-h-[160px] overflow-y-auto scrollbar-none space-y-1.5 backdrop-blur-sm shadow-inner shrink-0">
-          <div className="flex items-center justify-between border-b border-zinc-900 pb-1.5 mb-2">
-            <span className="text-[8px] text-zinc-500 uppercase tracking-widest font-extrabold">Логи ИИ-режиссера</span>
-            <div className="flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-              <span className="text-[7px] text-zinc-500 font-bold uppercase tracking-wider">online</span>
-            </div>
-          </div>
-          <p className="text-zinc-600">[Система] ⚡ Инициализация видеодвижка StoryReels...</p>
-          <p className="text-zinc-600">[Система] ⚙️ Стиль: 16-bit JRPG Pixel Art (512x896)</p>
-          {selectedEpisode?.scenes.map((scene, idx) => {
-            const isDone = !!(scene.imageUrl && scene.imageUrl !== "");
-            const isCurrent = !isDone && (idx === 0 || !!(selectedEpisode.scenes[idx - 1]?.imageUrl));
-            
-            if (isDone) {
-              return (
-                <p key={idx} className="text-emerald-400/90">
-                  ✓ Сцена {idx + 1}: Кадр отрисован, аудиодорожка синтезирована и загружена.
-                </p>
-              );
-            }
-            if (isCurrent) {
-              return (
-                <p key={idx} className="text-purple-400 animate-pulse">
-                  ⚡ Сцена {idx + 1}: Генерация 16-bit графики & синтез речи...
-                </p>
-              );
-            }
-            return null;
-          })}
-        </div>
-      </div>
-    );
   };
 
   return (
-    <div className="min-h-screen bg-[#030303] text-zinc-100 flex flex-col items-center justify-center font-sans overflow-x-hidden relative selection:bg-purple-600/40 select-none">
+    <div className="flex h-screen bg-zinc-950 text-white overflow-hidden font-sans select-none">
       
-      {/* Background neon blurred orbs for desktop environment */}
-      <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none z-0 animate-pulse"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[120px] pointer-events-none z-0 animate-pulse"></div>
-
-      {/* Desktop Container (Side info panels + Phone mockup frame) */}
-      <div className="lg:hidden w-full max-w-6xl z-10 flex flex-col md:flex-row items-center justify-center gap-12 px-6 py-6 sm:py-12">
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-40 w-72 bg-zinc-900/90 backdrop-blur-md transform transition-transform duration-300 md:relative md:translate-x-0 border-r border-zinc-800 flex flex-col ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
+          <h1 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+            StoryReels Chat
+          </h1>
+          <button className="md:hidden text-zinc-400" onClick={() => setSidebarOpen(false)}>
+            ✕
+          </button>
+        </div>
         
-        {/* Left Side: Product pitch on desktop screens */}
-        <div className="hidden md:flex flex-col max-w-md gap-6 text-left">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
-              <span className="text-2xl font-bold tracking-tighter text-white">S</span>
-            </div>
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-white">
-                Story<span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Reels</span>
-              </h1>
-              <p className="text-xs uppercase tracking-widest text-zinc-500 font-semibold font-mono">
-                ИИ СТУДИЯ ИНТЕРАКТИВНЫХ СЕРИАЛОВ
-              </p>
-            </div>
-          </div>
-
-          <p className="text-sm text-zinc-400 leading-relaxed">
-            Полноценный интерактивный кинотеатр в вертикальном формате. Напишите, как должен поступить герой, и нейросеть мгновенно сгенерирует сюжетную линию, кадры и русскую озвучку.
-          </p>
-
-          <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-5 backdrop-blur-md flex flex-col gap-4 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="text-xl">⚙️</div>
-              <div>
-                <h4 className="font-bold text-white mb-0.5">Вайб-дизайн система</h4>
-                <p className="text-zinc-500">Dark Mode, минимализм, стекло (glassmorphism) и неон.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-xl">🎭</div>
-              <div>
-                <h4 className="font-bold text-white mb-0.5">Интерактивный плеер</h4>
-                <p className="text-zinc-500">Интегрированный чат-контроллер в конце каждого ролика для продолжения истории.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-xl">💳</div>
-              <div>
-                <h4 className="font-bold text-white mb-0.5">Микротранзакции</h4>
-                <p className="text-zinc-500">Пэйволл на 19 ₽ перед рендерингом пилотной серии, подключенный к ЮKassa.</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-zinc-600 text-[11px] font-mono">
-            * Для мобильных устройств макет автоматически открывается на весь экран.
-          </div>
+        <div className="p-4 flex flex-col gap-2 border-b border-zinc-800 bg-zinc-900/50">
+          <p className="text-sm text-zinc-400">Токенов: <span className="text-purple-400 font-bold">{tokenBalance}</span></p>
+          <form onSubmit={handleStartGeneration} className="flex flex-col gap-2">
+            <input 
+              type="text" 
+              placeholder="О чем история?" 
+              value={prompt}
+              onChange={e => setPrompt(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500"
+            />
+            <button 
+              disabled={isGenerating || !prompt.trim()}
+              className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-medium py-2 rounded-lg text-sm transition-colors"
+            >
+              {isGenerating ? "Генерация..." : "Создать (1 токен)"}
+            </button>
+          </form>
         </div>
 
-        {/* Center: Smartphone Mockup Frame */}
-        <div className="w-full max-w-[390px] aspect-[9/19] h-[800px] relative z-20 flex-shrink-0 group-hover:scale-[1.01] transition-transform duration-500 sm:border-[10px] sm:border-zinc-800 sm:rounded-[3.2rem] sm:shadow-[0_0_80px_rgba(0,0,0,0.9),_0_0_120px_rgba(168,85,247,0.1)] sm:bg-black overflow-hidden
-          max-sm:h-screen max-sm:w-screen max-sm:rounded-none max-sm:border-none max-sm:max-w-none max-sm:aspect-auto">
-          
-          {/* iOS Notch & Status Bar (Hidden on full mobile layouts to look native) */}
-          <div className="absolute top-0 inset-x-0 h-10 z-50 flex items-center justify-between px-6 pointer-events-none select-none sm:flex hidden">
-            <span className="text-[10px] font-semibold text-white/90">9:41</span>
-            {/* Dynamic Island */}
-            <div className="w-24 h-4.5 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-1.5 border border-zinc-800/40"></div>
-            <div className="flex items-center gap-1.5 text-[10px] text-white/90">
-              <span>📶</span>
-              <span>5G</span>
-              <span>🔋</span>
-            </div>
-          </div>
-
-          {/* Device Screen Body */}
-          <div className="w-full h-full relative overflow-hidden bg-black text-zinc-100 flex flex-col justify-between sm:rounded-[2.4rem] max-sm:rounded-none">
-            
-            {/* ========================================================================= */}
-            {/* SCREEN 1: LANDING (ENTRANCE) */}
-            {/* ========================================================================= */}
-            {currentScreen === "landing" && (
-              <div className="h-full w-full relative overflow-hidden bg-black flex flex-col justify-between animate-fade-in">
-                {/* Background Loop Video */}
-                <video
-                  src="https://assets.mixkit.co/videos/preview/mixkit-cyberpunk-neon-city-scenery-at-night-40850-large.mp4"
-                  className="absolute inset-0 w-full h-full object-cover brightness-50 opacity-80 z-0"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                />
-                
-                {/* Header (Top) */}
-                <header className="relative z-10 w-full px-5 pt-12 pb-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
-                  <div className="flex items-center gap-2" onClick={() => setSidebarOpen(true)}>
-                    <div className="h-7 w-7 rounded-lg bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center cursor-pointer hover:opacity-90 active:scale-95 transition-all">
-                      <span className="text-sm font-bold text-white">S</span>
-                    </div>
-                    <span className="font-extrabold text-sm tracking-tight text-white cursor-pointer" onClick={() => setSidebarOpen(true)}>
-                      Storyreels
-                    </span>
-                  </div>
-                  <span className="bg-white/10 backdrop-blur-md border border-white/20 px-2.5 py-0.5 rounded-full text-[9px] font-bold text-zinc-300 tracking-wide">
-                    Серия 1
-                  </span>
-                </header>
-
-                {/* Center Title */}
-                <div className="relative z-10 px-6 flex-grow flex items-center justify-center">
-                  <h2 className="text-2xl sm:text-3xl font-black text-center text-white drop-shadow-[0_4px_15px_rgba(0,0,0,0.9)] tracking-tight leading-tight select-none">
-                    «Сюжет оборвался. Что сделает герой?»
-                  </h2>
-                </div>
-
-                {/* Bottom-0 Fixed panel */}
-                <div className="relative z-10 bg-gradient-to-t from-black via-black/90 to-transparent pt-28 pb-8 px-4 flex flex-col w-full">
-                  {/* Fake input text/button trigger */}
-                  <div 
-                    onClick={() => setShowPromptDrawer(true)}
-                    className="w-full bg-zinc-900/90 backdrop-blur-md border border-zinc-800 rounded-xl px-4 py-3 text-zinc-400 text-left text-xs mb-3.5 flex items-center justify-between shadow-lg cursor-pointer hover:border-zinc-700 hover:text-zinc-300 transition-all select-none active:scale-[0.99]"
-                  >
-                    <span>{prompt ? prompt : "Напиши свой вариант финала..."}</span>
-                    <span>✨</span>
-                  </div>
-
-                  {/* Preset chips */}
-                  <div className="flex gap-2 mb-4 justify-center">
-                    <button 
-                      onClick={() => {
-                        setPrompt("Герой осторожно открывает ржавую железную дверь...");
-                        handleStartGeneration("Герой осторожно открывает ржавую железную дверь...");
-                      }}
-                      className="bg-white/10 hover:bg-white/20 backdrop-blur text-white text-xs px-3.5 py-1.5 rounded-full border border-white/15 transition-all cursor-pointer select-none active:scale-95"
-                    >
-                      [Дверь]
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setPrompt("Герой выбивает стекло и прыгает в открытое окно...");
-                        handleStartGeneration("Герой выбивает стекло и прыгает в открытое окно...");
-                      }}
-                      className="bg-white/10 hover:bg-white/20 backdrop-blur text-white text-xs px-3.5 py-1.5 rounded-full border border-white/15 transition-all cursor-pointer select-none active:scale-95"
-                    >
-                      [Окно]
-                    </button>
-                  </div>
-
-                  {/* CTA generate button */}
-                  <button 
-                    onClick={() => {
-                      if (isGenerating) return;
-                      if (!prompt) {
-                        setShowPromptDrawer(true);
-                      } else {
-                        handleStartGeneration();
-                      }
-                    }}
-                    disabled={isGenerating}
-                    className="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-wider text-black bg-white select-none active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.4)] disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
-                        Генерируем серию...
-                      </>
-                    ) : (
-                      "Сгенерировать продолжение"
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Prompt Drawer slide up on click */}
-            {showPromptDrawer && (
-              <>
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity" onClick={() => setShowPromptDrawer(false)}></div>
-                <div className="absolute bottom-0 inset-x-0 bg-zinc-950/95 backdrop-blur-2xl border-t border-zinc-900 rounded-t-[2rem] p-6 z-40 flex flex-col gap-4.5 animate-slide-up shadow-[0_-15px_45px_rgba(0,0,0,0.9)]">
-                  <div className="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-1"></div>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <h3 className="text-xs font-mono uppercase tracking-widest text-purple-400 font-black">
-                      Генератор серии
-                    </h3>
-                    <p className="text-[10px] text-zinc-500 font-mono">
-                      Опишите, что произойдет с героем дальше в этом эпизоде.
-                    </p>
-                  </div>
-
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Например: Каэль подключается к терминалу и взламывает серверы корпорации, вызывая перегрузку сети..."
-                    className="w-full h-28 bg-zinc-950 border border-zinc-900 rounded-2xl p-4 text-[11px] text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-purple-500/80 focus:shadow-[0_0_15px_rgba(168,85,247,0.15)] resize-none transition-all"
-                  />
-
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => setShowPromptDrawer(false)}
-                      className="flex-1 py-3.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800/80 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400 hover:text-white transition-all active:scale-[0.98]"
-                    >
-                      Отмена
-                    </button>
-                    <button 
-                      onClick={() => handleStartGeneration()}
-                      disabled={!prompt.trim() || isGenerating}
-                      className="flex-1 py-3.5 bg-white hover:bg-zinc-100 text-black rounded-xl text-[10px] font-mono font-black uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98] flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.15)]"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
-                          Рендер...
-                        </>
-                      ) : (
-                        "Создать"
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 2: AUTH BOTTOM SHEET */}
-            {/* ========================================================================= */}
-            {currentScreen === "auth_sheet" && (
-              <div className="h-full w-full relative overflow-hidden bg-black flex flex-col justify-between">
-                {/* Visual background placeholder from screen 1 */}
-                <div className="absolute inset-0 bg-zinc-950 pointer-events-none opacity-40 z-0"></div>
-                
-                {/* Sheet Backdrop Blur Overlay */}
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-10" onClick={() => setCurrentScreen("player")}></div>
-                
-                {/* Bottom Sheet Modal */}
-                <div className="absolute bottom-0 inset-x-0 bg-zinc-900/95 backdrop-blur-2xl border-t border-zinc-800 rounded-t-[2.5rem] p-6 z-20 flex flex-col gap-6 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] animate-slide-up">
-                  {/* Top Drag Handle */}
-                  <div className="w-12 h-1 bg-zinc-700 rounded-full mx-auto mb-1"></div>
-                  
-                  {/* Content Head */}
-                  <div className="text-center">
-                    <h3 className="text-lg font-black text-white tracking-tight mb-1">
-                      Куда сохранить сериал?
-                    </h3>
-                    <p className="text-[10px] text-zinc-400 max-w-[240px] mx-auto leading-relaxed">
-                      Создайте профиль, чтобы отслеживать серии, копить токены и делиться сюжетами.
-                    </p>
-                  </div>
-
-                  {/* Auth Buttons */}
-                  <div className="flex flex-col gap-2.5 relative">
-                    {authLoading && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent"></div>
-                      </div>
-                    )}
-                    
-                    {/* Telegram Login */}
-                    <button 
-                      onClick={handleTelegramLogin}
-                      disabled={authLoading}
-                      className="bg-[#2AABEE] hover:bg-[#229ED9] text-white py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-lg active:scale-95"
-                    >
-                      <span className="text-base">✈️</span> Войти в 1 клик
-                    </button>
-
-                    {/* Google Login */}
-                    <button 
-                      onClick={() => handleOAuthLogin("google")}
-                      disabled={authLoading}
-                      className="bg-white hover:bg-zinc-100 text-black border border-zinc-200 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-md active:scale-95"
-                    >
-                      <span className="text-base font-serif font-black">G</span> Войти через Google
-                    </button>
-                  </div>
-
-                  {/* Email Login Form (Magic Link) */}
-                  <form onSubmit={handleMagicLink} className="relative mt-2">
-                    <input 
-                      type="email" 
-                      placeholder="Или почта для волшебной ссылки" 
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={authLoading}
-                      className="w-full bg-black/40 border border-zinc-800 text-white placeholder-zinc-500 text-[10px] px-3.5 py-3 rounded-xl focus:outline-none focus:border-purple-500 transition-colors"
-                    />
-                    <button 
-                      type="submit" 
-                      disabled={authLoading || !email.includes("@")}
-                      className="absolute right-1 top-1 bottom-1 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 px-3.5 rounded-lg text-[9px] font-bold text-white transition-colors"
-                    >
-                      Войти
-                    </button>
-                  </form>
-
-                  {/* Cancel Button */}
-                  <button 
-                    onClick={() => setCurrentScreen("player")}
-                    className="text-zinc-500 hover:text-zinc-400 text-xs font-semibold text-center mt-1 cursor-pointer transition-colors"
-                  >
-                    Вернуться назад
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 3: MICRO-PAYWALL */}
-            {/* ========================================================================= */}
-            {currentScreen === "paywall" && (
-              <div className="h-full w-full relative overflow-hidden bg-black flex flex-col items-center justify-center p-6 animate-fade-in">
-                
-                {/* Generation loader text & bar */}
-                <div className="text-center flex flex-col items-center gap-4 z-10">
-                  <div className="relative mb-3">
-                    <div className="h-16 w-16 rounded-full border-[3px] border-purple-500/10 border-t-purple-500 animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center text-xl animate-pulse">🧠</div>
-                  </div>
-                  <h3 className="text-sm font-bold text-white tracking-wider animate-pulse duration-1000">
-                    {loaderText}
-                  </h3>
-                  
-                  {/* Progress bar container */}
-                  <div className="w-48 h-1 bg-zinc-900 rounded-full overflow-hidden relative shadow-[0_0_10px_rgba(0,0,0,0.5)]">
-                    <div 
-                      className="h-full bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 rounded-full shadow-[0_0_15px_#a855f7] transition-all duration-300"
-                      style={{ width: `${simulationProgress}%` }}
-                    ></div>
-                  </div>
-                  <span className="text-[10px] font-mono text-zinc-500 font-bold">
-                    {simulationProgress}%
-                  </span>
-                </div>
-
-                {/* State 2 Paywall Modal Overlay */}
-                <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-20 flex items-center justify-center p-4">
-                  <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900/80 rounded-3xl p-5.5 text-center shadow-[0_10px_50px_rgba(168,85,247,0.25)] max-w-[90%] z-30 animate-scale-in">
-                    
-                    {/* Discount Badge */}
-                    <span className="inline-block bg-gradient-to-r from-red-500 to-pink-500 text-white text-[9px] font-black tracking-widest px-2.5 py-1 rounded-md uppercase mb-4 shadow-[0_0_15px_rgba(239,68,68,0.4)]">
-                      СКИДКА 85%
-                    </span>
-
-                    {/* Paywall Copy */}
-                    <h4 className="text-sm font-extrabold text-white tracking-tight mb-2 leading-snug">
-                      Рендеринг готов к запуску.
-                    </h4>
-                    <p className="text-[10px] text-zinc-400 leading-relaxed mb-6">
-                      Активируйте генерацию пилотной серии прямо сейчас всего за <strong className="text-purple-400">19 ₽</strong>. Включает 15 полноценных кадров ИИ и озвучку.
-                    </p>
-
-                    {/* Payment buttons container */}
-                    <div className="flex flex-col gap-2.5">
-                      {/* Shimmer pay button */}
-                      <button 
-                        onClick={handlePayActivation}
-                        className="w-full relative overflow-hidden py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-[size:200%_auto] animate-shimmer shadow-[0_0_20px_rgba(168,85,247,0.4)] hover:scale-[1.01] active:scale-[0.98] transition-all cursor-pointer"
-                      >
-                        Оплатить 19 ₽
-                      </button>
-
-                      {/* Sandbox bypass for developers */}
-                      <button 
-                        onClick={() => {
-                          setSimulationProgress(100);
-                          setCurrentScreen("generating");
-                          setLoaderText("Запуск демо-рендеринга...");
-                          setTimeout(async () => {
-                            if (createdEpisodeId) {
-                              await resumeGeneration(createdEpisodeId, userId, pendingScenes);
-                            }
-                            setCurrentScreen("player");
-                            setIsGenerating(false);
-                          }, 1200);
-                        }}
-                        className="text-zinc-500 hover:text-zinc-400 text-[9px] tracking-wide font-bold uppercase transition-colors py-1 cursor-pointer"
-                      >
-                        [ Демо-режим (0 токенов) ]
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Secure Checkout Overlay during simulation */}
-                {showDemoPayPrompt && (
-                  <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-40 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-                    <div className="h-10 w-10 animate-spin rounded-full border-2 border-purple-500 border-t-transparent mb-4"></div>
-                    <h4 className="text-sm font-bold text-white mb-1">Соединение с ЮKassa...</h4>
-                    <p className="text-[10px] text-zinc-500 font-mono">Безопасная оплата 19.00 RUB</p>
-                    <div className="mt-8 flex items-center gap-1.5 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-[9px] font-semibold text-zinc-400">
-                      <span>🔒</span> Защищено шифрованием SSL
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 4: LIVE RENDER GENERATOR (MOBILE) */}
-            {/* ========================================================================= */}
-            {currentScreen === "generating" && renderGeneratingLoader()}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 4: MAIN PLAYER */}
-            {/* ========================================================================= */}
-            {currentScreen === "player" && selectedEpisode && (
-              <div className="h-full w-full bg-black relative flex flex-col justify-between overflow-hidden animate-fade-in">
-                
-                {/* Layer 1: Media (Video / Pan Image Animation) */}
-                <div 
-                  onClick={handlePlayerScreenClick}
-                  className="absolute inset-0 z-0 h-full w-full overflow-hidden flex items-center justify-center cursor-pointer"
-                >
-                  {!isDesktop && (
-                    <EpisodePlayer
-                      scenes={selectedEpisode.scenes}
-                      isPlaying={isPlaying}
-                      onSceneChange={setActiveSceneIndex}
-                      onProgressChange={setSceneProgress}
-                      onPlaybackEnded={() => {
-                        setIsPlaying(false);
-                        setShowChatController(true);
-                        setSceneProgress(100);
-                      }}
-                    />
-                  )}
-
-                  {/* Live AI Render Status Badge */}
-                  {(selectedEpisode.status === "pending" || isGenerating) && (
-                    <div className="absolute top-28 right-4 z-40 bg-zinc-950/80 backdrop-blur-md border border-purple-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg shadow-purple-500/10 pointer-events-auto">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                      </span>
-                      <span className="text-[9px] font-bold text-purple-300 uppercase tracking-widest font-mono">
-                        ИИ РЕНДЕР: {selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/{selectedEpisode.scenes.length}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Pause Button Overlay indicator */}
-                  {!isPlaying && !showChatController && (
-                    <div className="absolute inset-0 bg-black/30 z-20 flex items-center justify-center pointer-events-none animate-fade-in">
-                      <div className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
-                        <Icons.Play className="w-5 h-5 fill-white text-white translate-x-0.5" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Layer 2: Player UI overlays */}
-                <div className="relative z-10 w-full flex flex-col justify-between h-full pointer-events-none">
-                  
-                  {/* Top Stories Progress Indicators - Removed to feel like a video */}
-                  <div className="w-full pt-16 pb-3 px-4 flex flex-col gap-3 bg-gradient-to-b from-black/90 via-black/40 to-transparent">
-                    {/* Header Controls inside player */}
-                    <div className="flex justify-between items-center pointer-events-auto">
-                      {/* Sidebar Menu icon */}
-                      <button 
-                        onClick={() => setSidebarOpen(true)}
-                        className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center text-white hover:bg-black/60 hover:border-white/20 active:scale-95 transition-all shadow-lg"
-                        title="Моя библиотека"
-                      >
-                        <Icons.List className="w-5 h-5" />
-                      </button>
-
-                      {/* Episode Title Badge */}
-                      <div className="bg-zinc-950/60 backdrop-blur-md border border-white/10 px-4 py-1.5 rounded-full flex flex-col items-center shadow-md">
-                        <span className="text-[10px] font-mono tracking-widest text-white uppercase font-black">
-                          {selectedEpisode.title}
-                        </span>
-                      </div>
-
-                      {/* New story button */}
-                      <button 
-                        onClick={() => {
-                          setPrompt("");
-                          setShowPromptDrawer(true);
-                        }}
-                        className="h-10 w-10 rounded-full bg-purple-500/10 backdrop-blur-md border border-purple-500/20 flex items-center justify-center text-purple-300 hover:bg-purple-500/20 active:scale-95 transition-all shadow-lg shadow-purple-500/5"
-                        title="Создать сериал"
-                      >
-                        <Icons.Sparkles className="w-5 h-5 fill-purple-400/25" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* CapCut-style Animated Subtitles (Hidden for now) */}
-                  {/* {!showChatController && selectedEpisode.scenes[activeSceneIndex] && (
-                    <div className="mt-auto mb-10 px-4 w-full flex justify-center text-center pointer-events-none z-30">
-                      <AnimatedSubtitles
-                        text={selectedEpisode.scenes[activeSceneIndex].text}
-                        sceneKey={activeSceneIndex}
-                        isPlaying={isPlaying}
-                      />
-                    </div>
-                  )} */}
-
-                  {/* Continuous Video Timeline Progress */}
-                  {!showChatController && selectedEpisode.scenes.length > 0 && (
-                    <div className="absolute bottom-0 inset-x-0 h-1.5 bg-zinc-900/80 z-40">
-                      <div 
-                        className="h-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)] transition-all ease-linear"
-                        style={{ 
-                          width: `${((activeSceneIndex + (sceneProgress / 100)) / selectedEpisode.scenes.length) * 100}%` 
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Layer 3: Chat Controller (Slides up on final scene completion) */}
-                <div 
-                  className={`absolute bottom-0 inset-x-0 z-30 transition-transform duration-500 ease-out flex flex-col ${
-                    showChatController ? "translate-y-0" : "translate-y-full"
-                  }`}
-                >
-                  <div className="bg-black/90 backdrop-blur-xl border-t border-zinc-800 p-4.5 flex flex-col gap-4 shadow-[0_-15px_35px_rgba(0,0,0,0.9)] w-full">
-                    
-                    {/* Drag decoration handle */}
-                    <div className="w-10 h-1 bg-zinc-800 rounded-full mx-auto mb-1"></div>
-
-                    {/* Messages Stack */}
-                    <div className="flex flex-col gap-3">
-                      {chatMessages.map((msg, idx) => (
-                        <div 
-                          key={idx}
-                          className={`flex max-w-[85%] text-[11px] leading-relaxed px-3.5 py-2.5 rounded-2xl ${
-                            msg.sender === "ai"
-                              ? "bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-tl-none self-start"
-                              : "bg-white text-black font-semibold rounded-tr-none self-end"
-                          }`}
-                        >
-                          {msg.text}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Chips preset options */}
-                    <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none scroll-smooth select-none w-full pointer-events-auto">
-                      {getActiveChips().map((chipText, cIdx) => (
-                        <button
-                          key={cIdx}
-                          onClick={(e) => {
-                            if (isGenerating) return;
-                            handleChatSubmit(e, chipText);
-                          }}
-                          disabled={isGenerating}
-                          className="bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 text-purple-300 text-[10px] font-bold px-3.5 py-2 rounded-full whitespace-nowrap transition-colors cursor-pointer select-none active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {chipText}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Real Text Input */}
-                    <form 
-                      onSubmit={handleChatSubmit}
-                      className="flex gap-2 w-full pointer-events-auto items-center"
-                    >
-                      <input 
-                        type="text"
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder={isGenerating ? "Идет генерация новой серии..." : "Напиши свой вариант финала..."}
-                        disabled={isGenerating}
-                        className="flex-grow bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-[11px] text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      />
-                      <button 
-                        type="submit"
-                        disabled={!chatInput.trim() || isGenerating}
-                        className="h-10 w-10 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors cursor-pointer active:scale-95 flex-shrink-0"
-                      >
-                        {isGenerating ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                        ) : (
-                          <Icons.ArrowRight className="w-4 h-4" />
-                        )}
-                      </button>
-                    </form>
-
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {currentScreen === "player" && !selectedEpisode && (
-              <div className="h-full w-full bg-black relative flex flex-col justify-center items-center px-6 text-center animate-fade-in">
-                {/* Background ambient neon glow */}
-                <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-48 h-48 bg-purple-600/10 rounded-full blur-[80px] pointer-events-none"></div>
-                <div className="absolute bottom-1/4 left-1/3 w-36 h-36 bg-pink-600/10 rounded-full blur-[60px] pointer-events-none"></div>
-
-                {/* Glassmorphic card */}
-                <div className="w-full bg-zinc-950/40 border border-zinc-900 backdrop-blur-xl rounded-3xl p-6.5 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center border border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.3)] mx-auto animate-pulse-slow">
-                    <Icons.Sparkles className="w-8 h-8 text-white" />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-base font-black text-white uppercase tracking-wider">Создайте свой первый сериал</h3>
-                    <p className="text-[11px] text-zinc-500 leading-relaxed">
-                      У вас пока нет активных историй. Введите любую идею или выберите один из шаблонов, чтобы сгенерировать уникальный интерактивный сериал с ИИ-озвучкой и кадрами.
-                    </p>
-                  </div>
-
-                  {/* Preset chips inside empty state dashboard */}
-                  <div className="flex flex-wrap gap-2 justify-center py-2">
-                    {PRESET_PROMPTS.map((item, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setPrompt(item.prompt);
-                          setShowPromptDrawer(true);
-                        }}
-                        className="bg-zinc-900/50 hover:bg-zinc-900/80 border border-zinc-800 text-[10px] text-zinc-300 font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
-                      >
-                        <span>{item.emoji}</span>
-                        {item.title}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button 
-                    onClick={() => {
-                      setPrompt("");
-                      setShowPromptDrawer(true);
-                    }}
-                    className="w-full py-3.5 bg-white text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all hover:scale-[1.01] active:scale-[0.98] shadow-[0_0_20px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2"
-                  >
-                    <Icons.Sparkles className="w-4 h-4 text-purple-600 fill-purple-600" />
-                    Начать генерацию
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* SCREEN 5: SIDEBAR (LIBRARY) */}
-            {/* ========================================================================= */}
-            {sidebarOpen && (
-              <>
-                {/* Sidebar backdrop blur overlay */}
-                <div 
-                  className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity" 
-                  onClick={() => setSidebarOpen(false)}
-                ></div>
-                
-                {/* Sidebar Container */}
-                <div className="absolute left-0 top-0 bottom-0 w-[80%] max-w-[285px] bg-zinc-950/95 backdrop-blur-2xl border-r border-zinc-900 z-50 flex flex-col justify-between shadow-[15px_0_50px_rgba(0,0,0,0.95)] animate-slide-right-panel">
-                  
-                  {/* Sidebar Header */}
-                  <div className="p-5 border-b border-zinc-900/60 flex flex-col gap-4.5">
-                    <div className="flex items-center gap-3">
-                      {/* Avatar placeholder */}
-                      <div className="h-10 w-10 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-                        <span className="font-mono font-black text-purple-300 text-xs">
-                          {userId ? userId.substring(0, 2).toUpperCase() : "G"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="text-[10px] font-mono text-zinc-400 font-bold truncate">
-                          {userId || "Гость"}
-                        </span>
-                        <span className="text-[8px] text-purple-400 uppercase tracking-widest font-black mt-0.5">
-                          СТАТУС: АКТИВЕН
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Token Balance Card */}
-                    <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-4 flex justify-between items-center shadow-inner">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] text-zinc-500 uppercase tracking-wider font-bold">Баланс</span>
-                        <span className="text-xs font-black text-white flex items-center gap-1.5 mt-0.5">
-                          {tokenBalance} токенов
-                        </span>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          setSidebarOpen(false);
-                          handleTopUp();
-                        }}
-                        className="bg-purple-600 hover:bg-purple-500 text-white text-[9px] font-mono font-bold uppercase tracking-wider px-3.5 py-2 rounded-xl transition-all cursor-pointer active:scale-95 shadow-[0_0_15px_rgba(168,85,247,0.25)]"
-                      >
-                        Пополнить
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Series List (vertical scroll) */}
-                  <div className="flex-grow overflow-y-auto px-4 py-4 flex flex-col gap-3 scrollbar-none">
-                    <div className="flex justify-between items-center pl-1 mb-1">
-                      <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest font-bold">
-                        {activeShowId ? "Серии" : "Мои сериалы"}
-                      </h4>
-                      {activeShowId && (
-                        <button onClick={() => setActiveShowId(null)} className="text-[9px] text-purple-400 hover:text-purple-300 font-bold uppercase tracking-widest">
-                          &larr; Назад
-                        </button>
-                      )}
-                    </div>
-
-                    {!activeShowId && (
-                      <button
-                        onClick={() => {
-                          setSelectedEpisode(null);
-                          setActiveShowId(null);
-                          setPrompt("");
-                          setShowPromptDrawer(true);
-                          setSidebarOpen(false);
-                        }}
-                        className="w-full py-2.5 px-4 mb-1 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/30 hover:border-purple-500/50 text-purple-300 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
-                      >
-                        <Icons.Plus className="w-4 h-4 text-purple-400" />
-                        Добавить сериал
-                      </button>
-                    )}
-
-                    {activeShowId ? (
-                      episodes.filter(ep => ep.showId === activeShowId).length === 0 ? (
-                        <div className="text-center py-6 text-zinc-600 text-[10px]">Нет серий</div>
-                      ) : (
-                        episodes.filter(ep => ep.showId === activeShowId).map((ep) => (
-                          <button
-                            key={ep.id}
-                            onClick={() => {
-                              setSelectedEpisode(ep);
-                              setActiveSceneIndex(0);
-                              setShowChatController(false);
-                              setIsPlaying(false);
-                              setSidebarOpen(false);
-                              setCurrentScreen("player");
-                            }}
-                            className={`flex gap-3 text-left rounded-xl p-2.5 transition-all border ${
-                              selectedEpisode?.id === ep.id
-                                ? "bg-purple-950/20 border-purple-500/35"
-                                : "border-transparent hover:bg-zinc-900/40 hover:border-zinc-900"
-                            }`}
-                          >
-                            <div className="h-12 w-12 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                              {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
-                                /* eslint-disable-next-line @next/next/no-img-element */
-                                <img 
-                                  src={ep.scenes[0].imageUrl} 
-                                  alt="" 
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-xs">🎞️</span>
-                              )}
-                            </div>
-                            <div className="flex flex-col justify-center overflow-hidden">
-                              <h5 className="text-[11px] font-bold text-white truncate max-w-[150px]">
-                                {ep.title}
-                              </h5>
-                              <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
-                                {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
-                              </span>
-                            </div>
-                          </button>
-                        ))
-                      )
-                    ) : (
-                      shows.length === 0 && episodes.length === 0 ? (
-                        <div className="text-center py-6 text-zinc-600 text-[10px]">Библиотека пуста</div>
-                      ) : (
-                        <>
-                          {shows.map((show) => {
-                            const showEpisodes = episodes.filter(e => e.showId === show.id);
-                            return (
-                              <button
-                                key={show.id}
-                                onClick={() => setActiveShowId(show.id)}
-                                className="flex gap-3 text-left rounded-xl p-2.5 transition-all border border-transparent hover:bg-zinc-900/40 hover:border-zinc-900"
-                              >
-                                <div className="h-12 w-12 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center text-xl">
-                                  📺
-                                </div>
-                                <div className="flex flex-col justify-center overflow-hidden">
-                                  <h5 className="text-[11px] font-bold text-white truncate max-w-[150px]">
-                                    {show.title}
-                                  </h5>
-                                  <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
-                                    {showEpisodes.length} серий
-                                  </span>
-                                </div>
-                              </button>
-                            );
-                          })}
-
-                          {episodes.filter(ep => !ep.showId).length > 0 && (
-                            <div className="mt-3">
-                              <h5 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest pl-1 mb-1 font-bold">Одиночные видео</h5>
-                              <div className="flex flex-col gap-3">
-                                {episodes.filter(ep => !ep.showId).map((ep) => (
-                                  <button
-                                    key={ep.id}
-                                    onClick={() => {
-                                      setSelectedEpisode(ep);
-                                      setActiveSceneIndex(0);
-                                      setShowChatController(false);
-                                      setIsPlaying(false);
-                                      setSidebarOpen(false);
-                                      setCurrentScreen("player");
-                                    }}
-                                    className={`flex gap-3 text-left rounded-xl p-2.5 transition-all border ${
-                                      selectedEpisode?.id === ep.id
-                                        ? "bg-purple-950/20 border-purple-500/35"
-                                        : "border-transparent hover:bg-zinc-900/40 hover:border-zinc-900"
-                                    }`}
-                                  >
-                                    <div className="h-12 w-12 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                                      {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
-                                        /* eslint-disable-next-line @next/next/no-img-element */
-                                        <img 
-                                          src={ep.scenes[0].imageUrl} 
-                                          alt="" 
-                                          className="h-full w-full object-cover"
-                                        />
-                                      ) : (
-                                        <span className="text-xs">🎞️</span>
-                                      )}
-                                    </div>
-                                    <div className="flex flex-col justify-center overflow-hidden">
-                                      <h5 className="text-[11px] font-bold text-white truncate max-w-[150px]">
-                                        {ep.title}
-                                      </h5>
-                                      <span className="text-[8px] text-zinc-500 font-mono mt-0.5 uppercase tracking-wide">
-                                        {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
-                                      </span>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )
-                    )}
-                  </div>
-
-                  {/* Sidebar Footer */}
-                  <div className="p-5 border-t border-zinc-900 flex justify-between items-center">
-                    <button 
-                      onClick={() => {
-                        setSidebarOpen(false);
-                        setPrompt("");
-                        setShowPromptDrawer(true);
-                      }}
-                      className="text-zinc-400 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Icons.Sparkles className="w-4 h-4 text-purple-400" /> Создать новый
-                    </button>
-                    
-                    <button 
-                      onClick={async () => {
-                        await supabase.auth.signOut();
-                        setIsRegistered(true);
-                        setSidebarOpen(false);
-                        setCurrentScreen("player");
-                      }}
-                      className="text-red-500/80 hover:text-red-400 text-[10px] font-bold uppercase transition-colors cursor-pointer"
-                    >
-                      Выйти
-                    </button>
-                  </div>
-
-                </div>
-              </>
-            )}
-
-            {/* Bottom Safe Area bar decorator (virtual iOS home line) */}
-            <div className="absolute bottom-1 inset-x-0 h-1 z-50 pointer-events-none sm:block hidden">
-              <div className="w-32 h-1 bg-white/20 rounded-full mx-auto"></div>
-            </div>
-
-          </div>
+        <div className="flex-1 overflow-y-auto p-2">
+          {episodes.map(ep => (
+            <button
+              key={ep.id}
+              onClick={() => {
+                setSelectedEpisode(ep);
+                setRevealedIndex(0);
+                setSidebarOpen(false);
+              }}
+              className={`w-full text-left p-3 rounded-lg mb-1 truncate text-sm transition-colors ${selectedEpisode?.id === ep.id ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/50'}`}
+            >
+              {ep.title}
+            </button>
+          ))}
         </div>
-
       </div>
 
-      {/* ========================================================================= */}
-      {/* DESKTOP DASHBOARD (GRID VIEW FOR SCREEN >= 1024px) */}
-      {/* ========================================================================= */}
-      {(currentScreen === "player" || currentScreen === "generating" || currentScreen === "paywall" || currentScreen === "auth_sheet") && (
-        <div className="hidden lg:flex w-full h-screen bg-[#030303] overflow-hidden text-zinc-200 z-10 relative">
-          
-          {/* Left Sidebar (Library & Profile) */}
-          <aside className="w-80 bg-zinc-950/60 border-r border-zinc-900 flex flex-col justify-between h-full">
-            {/* Sidebar Top: Logo */}
-            <div className="p-6 border-b border-zinc-900 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                  <span className="text-lg font-bold text-white">S</span>
-                </div>
-                <div>
-                  <h1 className="text-lg font-extrabold tracking-tight text-white leading-none">
-                    Story<span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Reels</span>
-                  </h1>
-                  <span className="text-[8px] font-mono text-zinc-500 tracking-wider font-bold">STUDIO WORKSPACE</span>
-                </div>
-              </div>
-            </div>
+      {/* Main Chat Area */}
+      <div className="flex-1 relative flex flex-col bg-zinc-950 h-full" onClick={handleTap}>
+        
+        {/* Header */}
+        <div className="absolute top-0 inset-x-0 h-16 bg-zinc-900/80 backdrop-blur-lg border-b border-zinc-800 z-10 flex items-center px-4">
+          <button className="md:hidden mr-4 text-zinc-400" onClick={(e) => { e.stopPropagation(); setSidebarOpen(true); }}>
+            <Icons.List className="w-6 h-6" />
+          </button>
+          <h2 className="text-lg font-medium text-zinc-100">{selectedEpisode?.title || "Выберите историю"}</h2>
+        </div>
 
-            {/* Sidebar Middle: Library List */}
-            <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-3 scrollbar-none">
-              <div className="flex justify-between items-center px-1 mb-1">
-                <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-                  {activeShowId ? "Серии" : "Мои сериалы"}
-                </h4>
-                {activeShowId ? (
-                  <button onClick={() => setActiveShowId(null)} className="text-[10px] text-purple-400 hover:text-purple-300">
-                    &larr; Назад
-                  </button>
-                ) : (
-                  <span className="text-[10px] bg-purple-950/40 text-purple-400 px-2 py-0.5 rounded-full font-mono border border-purple-500/25">
-                    {shows.length}
-                  </span>
-                )}
-              </div>
-
-              {!activeShowId && (
-                <button
-                  onClick={() => {
-                    setSelectedEpisode(null);
-                    setActiveShowId(null);
-                    setPrompt("");
-                  }}
-                  className="w-full py-2.5 px-4 mb-1 bg-purple-600/10 hover:bg-purple-600/20 border border-purple-500/30 hover:border-purple-500/50 text-purple-300 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
-                >
-                  <Icons.Plus className="w-4 h-4 text-purple-400" />
-                  Добавить сериал
-                </button>
-              )}
-
-              {activeShowId ? (
-                episodes.filter(ep => ep.showId === activeShowId).length === 0 ? (
-                  <div className="text-center py-8 text-zinc-600 text-xs">Нет серий</div>
-                ) : (
-                  episodes.filter(ep => ep.showId === activeShowId).map((ep) => (
-                    <button
-                      key={ep.id}
-                      onClick={() => {
-                        setSelectedEpisode(ep);
-                        setActiveSceneIndex(0);
-                        setShowChatController(false);
-                        setIsPlaying(false);
-                      }}
-                      className={`flex gap-3 text-left rounded-2xl p-3 transition-all border ${
-                        selectedEpisode?.id === ep.id
-                          ? "bg-purple-950/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.05)]"
-                          : "border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
-                      }`}
-                    >
-                      <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner">
-                        {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img 
-                            src={ep.scenes[0].imageUrl} 
-                            alt="" 
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-lg">🎞️</span>
-                        )}
-                      </div>
-                      <div className="flex flex-col justify-center overflow-hidden">
-                        <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
-                          {ep.title}
-                        </h5>
-                        <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
-                          {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
-                        </span>
-                      </div>
-                    </button>
-                  ))
-                )
-              ) : (
-                shows.length === 0 && episodes.length === 0 ? (
-                  <div className="text-center py-8 text-zinc-600 text-xs">Библиотека пуста</div>
-                ) : (
-                  <>
-                    {shows.map((show) => {
-                      const showEpisodes = episodes.filter(e => e.showId === show.id);
-                      return (
-                        <button
-                          key={show.id}
-                          onClick={() => setActiveShowId(show.id)}
-                          className="flex gap-3 text-left rounded-2xl p-3 transition-all border border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
-                        >
-                          <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner text-2xl">
-                            📺
-                          </div>
-                          <div className="flex flex-col justify-center overflow-hidden">
-                            <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
-                              {show.title}
-                            </h5>
-                            <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
-                              {showEpisodes.length} серий
-                            </span>
-                          </div>
-                        </button>
-                      );
-                    })}
-
-                    {episodes.filter(ep => !ep.showId).length > 0 && (
-                      <div className="mt-4">
-                        <h5 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest px-1 mb-2">Одиночные видео</h5>
-                        <div className="flex flex-col gap-3">
-                          {episodes.filter(ep => !ep.showId).map((ep) => (
-                            <button
-                              key={ep.id}
-                              onClick={() => {
-                                setSelectedEpisode(ep);
-                                setActiveSceneIndex(0);
-                                setShowChatController(false);
-                                setIsPlaying(false);
-                              }}
-                              className={`flex gap-3 text-left rounded-2xl p-3 transition-all border ${
-                                selectedEpisode?.id === ep.id
-                                  ? "bg-purple-950/20 border-purple-500/40 shadow-[0_0_15px_rgba(168,85,247,0.05)]"
-                                  : "border-zinc-900/40 bg-zinc-900/10 hover:bg-zinc-900/30 hover:border-zinc-800"
-                              }`}
-                            >
-                              <div className="h-12 w-12 rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 flex items-center justify-center shadow-inner">
-                                {ep.scenes && ep.scenes[0] && ep.scenes[0].imageUrl ? (
-                                  /* eslint-disable-next-line @next/next/no-img-element */
-                                  <img 
-                                    src={ep.scenes[0].imageUrl} 
-                                    alt="" 
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <span className="text-lg">🎞️</span>
-                                )}
-                              </div>
-                              <div className="flex flex-col justify-center overflow-hidden">
-                                <h5 className="text-xs font-bold text-white truncate max-w-[170px]">
-                                  {ep.title}
-                                </h5>
-                                <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase tracking-wide">
-                                  {ep.scenes ? `${ep.scenes.length} кадров` : "0 кадров"}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )
-              )}
-            </div>
-
-            {/* Sidebar Bottom: Profile */}
-            <div className="p-6 border-t border-zinc-900 bg-zinc-900/10 flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8.5 w-8.5 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center font-bold text-sm text-purple-400">
-                    U
+        {/* Messages */}
+        <div ref={chatContainerRef} className="flex-1 overflow-y-auto pt-24 pb-32 px-4 scroll-smooth">
+          {selectedEpisode ? (
+            <div className="flex flex-col gap-4 max-w-2xl mx-auto">
+              {selectedEpisode.messages.slice(0, revealedIndex + 1).map((msg, idx) => {
+                const isMe = msg.sender === "Ты";
+                return (
+                  <div key={idx} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[85%]`}>
+                    {!isMe && <span className="text-xs text-zinc-500 ml-2 mb-1">{msg.sender}</span>}
+                    <div className={`px-4 py-2.5 rounded-2xl text-[15px] shadow-sm leading-relaxed ${isMe ? 'bg-purple-600 rounded-tr-sm text-white' : 'bg-zinc-800 rounded-tl-sm text-zinc-100'}`}>
+                      {msg.text}
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">Пользователь</span>
-                    <span className="text-[9px] text-zinc-500 font-mono uppercase">Баланс: {tokenBalance} 🪙</span>
+                );
+              })}
+              
+              {isTyping && (
+                <div className="flex items-start max-w-[85%] mt-2">
+                  <div className="bg-zinc-800 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1 items-center h-10">
+                    <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
-                
-                <button 
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    setIsRegistered(true);
-                    setCurrentScreen("player");
-                  }}
-                  className="text-red-500/80 hover:text-red-400 text-[10px] font-bold uppercase transition-colors p-1.5 cursor-pointer"
-                >
-                  Выйти
-                </button>
-              </div>
+              )}
             </div>
-          </aside>
+          ) : (
+            <div className="h-full flex items-center justify-center text-zinc-500 flex-col gap-4">
+              <span className="text-4xl">👋</span>
+              <p>Выберите историю слева или создайте новую</p>
+            </div>
+          )}
+        </div>
 
-          {/* Main Center Area */}
-          <main className="flex-grow flex h-full overflow-hidden bg-black/20">
+        {/* Tap Helper */}
+        {selectedEpisode && !showPaywall && (
+          <div className="absolute bottom-6 inset-x-0 flex justify-center pointer-events-none">
+            <div className="bg-black/50 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-xs font-medium text-white/50 animate-pulse">
+              Нажмите для продолжения
+            </div>
+          </div>
+        )}
+
+        {/* Paywall Overlay */}
+        {showPaywall && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+            {/* Blurred background intercepting taps */}
+            <div className="absolute inset-0 bg-zinc-950/60 backdrop-blur-md" onClick={(e) => e.stopPropagation()} />
             
-            {currentScreen === "generating" ? (
-              renderGeneratingLoader()
-            ) : (
-              <>
-                {/* Center Column: The Active Player */}
-                <div className="flex-1 flex flex-col items-center justify-center p-6 border-r border-zinc-900 h-full overflow-y-auto scrollbar-none">
-                  {selectedEpisode ? (
-                    <div className="flex flex-col items-center gap-6 w-full max-w-[480px]">
-                      
-                      {/* Header title */}
-                      <div className="text-center w-full">
-                        <h2 className="text-base font-black text-white uppercase tracking-wider mb-1">{selectedEpisode.title}</h2>
-                      </div>
-
-                      {/* Vertical Story Player Screen */}
-                      <div className="relative w-full aspect-[9/16] max-h-[580px] bg-zinc-950 border border-zinc-800 rounded-3xl overflow-hidden shadow-[0_30px_70px_rgba(0,0,0,0.8)]">
-                        {/* Media Content */}
-                        <div className="w-full h-full relative" onClick={handlePlayerScreenClick}>
-                          {isDesktop && (
-                            <EpisodePlayer
-                              scenes={selectedEpisode.scenes}
-                              isPlaying={isPlaying}
-                              onSceneChange={setActiveSceneIndex}
-                              onProgressChange={setSceneProgress}
-                              onPlaybackEnded={() => {
-                                setIsPlaying(false);
-                                setShowChatController(true);
-                                setSceneProgress(100);
-                              }}
-                            />
-                          )}
-
-                          {/* Live AI Render Status Badge */}
-                          {(selectedEpisode.status === "pending" || isGenerating) && (
-                            <div className="absolute top-4 right-4 z-40 bg-zinc-950/80 backdrop-blur-md border border-purple-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg shadow-purple-500/10 pointer-events-auto">
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                              </span>
-                              <span className="text-[9px] font-bold text-purple-300 uppercase tracking-widest font-mono">
-                                ИИ РЕНДЕР: {selectedEpisode.scenes.filter(s => s.imageUrl && s.imageUrl !== "").length}/{selectedEpisode.scenes.length}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Play/Pause Overlay indicator */}
-                          {!isPlaying && !showChatController && (
-                            <div className="absolute inset-0 bg-black/20 z-20 flex items-center justify-center pointer-events-none">
-                              <div className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20">
-                                <Icons.Play className="w-5 h-5 fill-white text-white translate-x-0.5" />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Continuous Video Timeline Progress */}
-                          {!showChatController && selectedEpisode.scenes.length > 0 && (
-                            <div className="absolute bottom-0 inset-x-0 h-1.5 bg-zinc-900/80 z-40 pointer-events-none">
-                              <div 
-                                className="h-full bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.8)] transition-all ease-linear"
-                                style={{ 
-                                  width: `${((activeSceneIndex + (sceneProgress / 100)) / selectedEpisode.scenes.length) * 100}%` 
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Active Paywall Modal Overlay */}
-                        {currentScreen === "paywall" && (
-                          <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-45 flex items-center justify-center p-4">
-                            <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900/80 rounded-3xl p-5 text-center shadow-2xl max-w-[90%] animate-scale-in">
-                              <h4 className="text-xs font-black text-white uppercase tracking-wider mb-2">Создание пилотной серии</h4>
-                              <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">
-                                Для запуска ИИ-генерации (сценарий, Flux-кадры, озвучка) требуется оплатить 19 ₽.
-                              </p>
-                              
-                              <div className="flex flex-col gap-2">
-                                <button 
-                                  onClick={handlePayActivation}
-                                  className="w-full py-3 rounded-xl font-black text-[10px] uppercase tracking-wider text-white bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-[size:200%_auto] animate-shimmer shadow-[0_0_15px_rgba(168,85,247,0.4)] hover:scale-[1.01] transition-all cursor-pointer"
-                                >
-                                  Оплатить 19 ₽
-                                </button>
-                                
-                                {/* Dev sandbox bypass */}
-                                <button 
-                                  onClick={() => {
-                                    setSimulationProgress(100);
-                                    setCurrentScreen("generating");
-                                    setLoaderText("Запуск демо-рендеринга...");
-                                    setTimeout(async () => {
-                                      if (createdEpisodeId) {
-                                        await resumeGeneration(createdEpisodeId, userId, pendingScenes);
-                                      }
-                                      setIsGenerating(false);
-                                    }, 1200);
-                                  }}
-                                  className="text-zinc-500 hover:text-zinc-400 text-[8px] tracking-wide font-bold uppercase transition-colors py-1 cursor-pointer"
-                                >
-                                  [ Демо-режим ]
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                      </div>
-
-                      {/* Subtitle bottom banner if not in play */}
-                      {showChatController && (
-                        <div className="w-full bg-purple-950/15 border border-purple-500/20 backdrop-blur-md rounded-2xl p-4 text-center animate-scale-in">
-                          <p className="text-purple-300 text-xs font-semibold">
-                            Сцена завершилась. Выберите продолжение истории на панели справа.
-                          </p>
-                        </div>
-                      )}
-
-                    </div>
-                  ) : (
-                    /* Empty State view */
-                    <div className="flex flex-col items-center justify-center max-w-sm text-center gap-6 p-6 bg-zinc-950/20 border border-zinc-900 rounded-3xl backdrop-blur-xl">
-                      <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center border border-purple-400/20 shadow-[0_0_20px_rgba(168,85,247,0.35)]">
-                        <Icons.Sparkles className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex flex-col gap-1.5">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Создайте свой первый сериал</h3>
-                        <p className="text-[10px] text-zinc-500 leading-relaxed">
-                          Введите любую креативную идею или выберите готовый пресет на панели справа, чтобы начать генерацию.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Right Column: Generation workspace */}
-                <div className="w-96 p-6 flex flex-col gap-6 overflow-y-auto h-full scrollbar-none border-l border-zinc-900 bg-zinc-950/10">
-                  
-                  {/* Box 1: Generation Control */}
-                  <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
-                    <div className="flex items-center gap-2 border-b border-zinc-900 pb-3">
-                      <Icons.Sparkles className="w-4 h-4 text-purple-400" />
-                      <h3 className="text-xs font-black text-white uppercase tracking-wider">Генератор серии</h3>
-                    </div>
-
-                    {/* Text Area */}
-                    <div className="flex flex-col gap-2.5">
-                      <label className="text-[9px] text-zinc-500 font-mono uppercase tracking-widest">
-                        Что произойдет дальше?
-                      </label>
-                      <textarea
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        placeholder="Опишите действие, например: Герой выбивает ржавую дверь плечом и прыгает в темную вентиляционную шахту..."
-                        className="w-full h-28 bg-black border border-zinc-800 rounded-xl p-3 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-purple-500 resize-none transition-colors"
-                      />
-                    </div>
-
-                    {/* Active Choices from parsing if ready */}
-                    {selectedEpisode && showChatController && (
-                      <div className="flex flex-col gap-2">
-                        <span className="text-[8px] text-purple-400 font-mono uppercase tracking-widest">
-                          Варианты на выбор:
-                        </span>
-                        <div className="flex flex-col gap-1.5">
-                          {getActiveChips().map((chipText, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                setPrompt(chipText);
-                              }}
-                              className="text-left bg-purple-950/15 hover:bg-purple-950/30 border border-purple-500/20 text-purple-300 text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer hover:border-purple-500/40"
-                            >
-                              {chipText}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Generate button */}
-                    <button
-                      onClick={() => handleStartGeneration()}
-                      disabled={isGenerating}
-                      className="w-full relative overflow-hidden py-3.5 rounded-xl font-black text-xs uppercase tracking-wider text-black bg-white select-none active:scale-[0.98] transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.15)] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent"></div>
-                          Создание...
-                        </>
-                      ) : (
-                        <>
-                          <Icons.Sparkles className="w-3.5 h-3.5" />
-                          Запустить рендер
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Box 2: Preset Inspirations */}
-                  <div className="bg-zinc-950/50 border border-zinc-900 rounded-3xl p-5 backdrop-blur-md flex flex-col gap-4">
-                    <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">
-                      Готовые идеи и сюжеты
-                    </h4>
-                    <div className="grid grid-cols-1 gap-2.5">
-                      {PRESET_PROMPTS.map((item, idx) => (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            setPrompt(item.prompt);
-                          }}
-                          className="flex items-center gap-3 text-left p-2.5 rounded-xl bg-zinc-900/30 border border-zinc-900 hover:bg-zinc-900/60 hover:border-zinc-800 transition-all group"
-                        >
-                          <span className="text-lg group-hover:scale-110 transition-transform">{item.emoji}</span>
-                          <div className="flex flex-col">
-                            <span className="text-[11px] font-bold text-white">{item.title}</span>
-                            <span className="text-[8px] text-zinc-500 font-mono mt-0.5 truncate max-w-[210px]">{item.prompt}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              </>
-            )}
-        </main>
-
-        {/* Auth Sheet Overlay for Desktop */}
-        {currentScreen === "auth_sheet" && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-6 animate-fade-in">
-            <div className="bg-zinc-950/80 backdrop-blur-xl border border-zinc-900 rounded-3xl p-8 max-w-sm w-full text-center shadow-[0_20px_50px_rgba(168,85,247,0.15)] flex flex-col gap-6 animate-scale-in">
-              <div className="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-1"></div>
+            <div className="relative bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 max-w-sm w-full text-center shadow-2xl flex flex-col gap-6" onClick={(e) => e.stopPropagation()}>
+              <div className="w-16 h-16 bg-purple-500/20 text-purple-400 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-3xl">🔒</span>
+              </div>
               <div>
-                <h3 className="text-lg font-black text-white tracking-tight mb-1">Куда сохранить сериал?</h3>
-                <p className="text-[10px] text-zinc-500 leading-relaxed">
-                  Создайте профиль, чтобы сохранять серии, отслеживать прогресс и тратить токены.
+                <h3 className="text-xl font-bold text-white mb-2">История обрывается на самом интересном!</h3>
+                <p className="text-sm text-zinc-400 leading-relaxed">
+                  Кульминация уже близко. Узнайте развязку сюжета прямо сейчас.
                 </p>
               </div>
-
-              {/* OAuth / Auth Buttons */}
-              <div className="flex flex-col gap-3 relative">
-                {authLoading && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
-                    <div className="h-6 w-6 animate-spin rounded-full border-2 border-purple-500 border-t-transparent"></div>
-                  </div>
-                )}
-                
-                <button 
-                  onClick={handleTelegramLogin}
-                  disabled={authLoading}
-                  className="bg-[#2AABEE] hover:bg-[#229ED9] text-white py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-lg active:scale-95"
-                >
-                  Войти через Telegram
-                </button>
-
-                <button 
-                  onClick={() => handleOAuthLogin("google")}
-                  disabled={authLoading}
-                  className="bg-white hover:bg-zinc-100 text-black border border-zinc-200 py-3 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-3 transition-all cursor-pointer shadow-md active:scale-95"
-                >
-                  Войти через Google
-                </button>
-              </div>
-
-              {/* Email Form */}
-              <form onSubmit={handleMagicLink} className="relative mt-2">
-                <input 
-                  type="email" 
-                  placeholder="Или почта для входа" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={authLoading}
-                  className="w-full bg-black/60 border border-zinc-800 text-white placeholder-zinc-500 text-[10px] px-3.5 py-3 rounded-xl focus:outline-none focus:border-purple-500 transition-colors"
-                />
-                <button 
-                  type="submit" 
-                  disabled={authLoading || !email.includes("@")}
-                  className="absolute right-1.5 top-1.5 bottom-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 px-3.5 rounded-lg text-[9px] font-bold text-white transition-colors"
-                >
-                  Войти
-                </button>
-              </form>
-
-              <button 
-                onClick={() => setCurrentScreen("player")}
-                className="text-zinc-500 hover:text-zinc-400 text-xs font-semibold cursor-pointer transition-colors"
-              >
-                Вернуться в плеер
+              <button onClick={handlePay} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3.5 rounded-xl hover:scale-[1.02] active:scale-[0.98] transition-transform shadow-lg shadow-purple-500/25">
+                Разблокировать за 100 ₽
               </button>
             </div>
           </div>
         )}
 
       </div>
-      )}
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes shimmer {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-shimmer {
-          background-size: 200% auto;
-          animation: shimmer 3s linear infinite;
-        }
-
-        @keyframes slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        @keyframes slide-right-panel {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
-        }
-        .animate-slide-right-panel {
-          animation: slide-right-panel 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        .scrollbar-none::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-none {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-
-        @keyframes scale-in {
-          from { transform: scale(0.95); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-        .animate-scale-in {
-          animation: scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}} />
     </div>
   );
 }

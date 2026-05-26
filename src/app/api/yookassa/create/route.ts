@@ -3,10 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
   try {
-    const { userId } = await request.json();
+    const { userId, episodeId } = await request.json();
 
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    if (!userId || !episodeId) {
+      return NextResponse.json({ error: 'User ID and Episode ID are required' }, { status: 400 });
     }
 
     const shopId = process.env.YOOKASSA_SHOP_ID;
@@ -30,9 +30,10 @@ export async function POST(request: Request) {
           type: 'redirect',
           return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/success`,
         },
-        description: 'Покупка 1 токена',
+        description: 'Разблокировка концовки истории',
         metadata: {
           user_id: userId,
+          episode_id: episodeId,
         },
       }),
     });

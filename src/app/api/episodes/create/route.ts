@@ -12,17 +12,18 @@ const MIN_MESSAGES = 12;
 
 // ─── LLM Script Generation ─────────────────────────────────────────────────
 
-async function generateScript(userPrompt: string): Promise<ChatMessage[]> {
+async function generateScript(userPrompt: string): Promise<{ messages: ChatMessage[], scenario: string }> {
   const apiKey = process.env.POLZA_API_KEY;
 
   if (!apiKey) {
     console.warn('[generateScript] POLZA_API_KEY missing — using mock script');
-    return createMockScript(userPrompt);
+    return { messages: createMockScript(userPrompt), scenario: "Mock scenario" };
   }
 
-  console.log(`[generateScript] Requesting chat script for: "${userPrompt.substring(0, 60)}..."`);
+  console.log(`[generateScript] Requesting scenario for: "${userPrompt.substring(0, 60)}..."`);
 
-  const response = await fetch('https://polza.ai/api/v1/chat/completions', {
+  // Step 1: Generate Scenario
+  const scenarioResponse = await fetch('https://polza.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -31,28 +32,61 @@ async function generateScript(userPrompt: string): Promise<ChatMessage[]> {
     body: JSON.stringify({
       model: 'openai/gpt-4o-mini',
       messages: [
-        { role: 'system', content: buildSystemPrompt() },
+        { role: 'system', content: buildScenarioPrompt() },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.75,
     }),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '(unreadable)');
-    throw new Error(`Polza LLM HTTP ${response.status}: ${errorText.substring(0, 300)}`);
+  if (!scenarioResponse.ok) {
+    const errorText = await scenarioResponse.text().catch(() => '(unreadable)');
+    throw new Error(`Polza LLM (Scenario) HTTP ${scenarioResponse.status}: ${errorText.substring(0, 300)}`);
   }
 
-  const result = await response.json();
-  const content = result?.choices?.[0]?.message?.content;
+  const scenarioResult = await scenarioResponse.json();
+  const scenarioText = scenarioResult?.choices?.[0]?.message?.content;
 
-  if (!content || typeof content !== 'string') {
-    throw new Error('LLM response missing content');
+  if (!scenarioText || typeof scenarioText !== 'string') {
+    throw new Error('LLM scenario response missing content');
   }
 
-  const messages = parseAndValidateMessages(content);
+  console.log(`[generateScript] ✓ Scenario generated (${scenarioText.length} chars)`);
+  console.log(`[generateScript] Requesting messages based on scenario...`);
+
+  // Step 2: Generate Messages
+  const messagesResponse = await fetch('https://polza.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'openai/gpt-4o-mini',
+      messages: [
+        { role: 'system', content: buildMessagesPrompt() },
+        { role: 'user', content: `СЦЕНАРИЙ:\n${scenarioText}` },
+      ],
+      temperature: 0.75,
+    }),
+  });
+
+  if (!messagesResponse.ok) {
+    const errorText = await messagesResponse.text().catch(() => '(unreadable)');
+    throw new Error(`Polza LLM (Messages) HTTP ${messagesResponse.status}: ${errorText.substring(0, 300)}`);
+  }
+
+  const messagesResult = await messagesResponse.json();
+  const messagesContent = messagesResult?.choices?.[0]?.message?.content;
+
+  if (!messagesContent || typeof messagesContent !== 'string') {
+    throw new Error('LLM messages response missing content');
+  }
+
+  const messages = parseAndValidateMessages(messagesContent);
   console.log(`[generateScript] ✓ Parsed ${messages.length} messages`);
-  return messages;
+  
+  return { messages, scenario: scenarioText };
 }
 
 function createMockScript(userPrompt: string): ChatMessage[] {
@@ -61,21 +95,30 @@ function createMockScript(userPrompt: string): ChatMessage[] {
     sender: i % 2 === 0 ? 'Ты' : 'Собеседник',
     text: `Сообщение ${i + 1} в истории про "${userPrompt}"`,
     typingDelayMs: 1500,
-    mediaPrompt: i === 4 ? `Scary shadow behind the door, dark room, 9:16 aspect ratio` : undefined,
     isCliffhanger: i === 5 ? true : undefined,
   }));
 }
 
-function buildSystemPrompt(): string {
-  return `Ты — сценарист вирусных интерактивных чат-историй (в стиле Hooked, Yarn, переписки-страшилки). Твоя задача — создать захватывающий диалог из 15-20 сообщений.
+function buildScenarioPrompt(): string {
+  return `Ты — профессиональный сценарист триллеров, драм и хорроров. 
+Твоя задача — написать краткий, но захватывающий сценарий для чат-истории (3-4 абзаца) на основе идеи пользователя.
+В сценарии обязательно должны быть:
+1. Завязка сюжета.
+2. Нарастание напряжения.
+3. Кульминация (самый напряженный момент примерно в середине или чуть дальше, где будет стоять paywall).
+4. Развязка или интригующий финал.
+Главный герой чата всегда "Ты". Выдай только текст сценария.`;
+}
+
+function buildMessagesPrompt(): string {
+  return `Ты — сценарист вирусных интерактивных чат-историй (в стиле Hooked). Твоя задача — опираясь на предоставленный СЦЕНАРИЙ, написать захватывающий диалог из 25-35 сообщений.
 
 Каждое сообщение в диалоге должно быть объектом с полями:
 - "id": уникальная строка, например "msg-1", "msg-2", ...
-- "sender": имя отправителя, строго одно из двух: "Ты" (главный герой) или другое имя (собеседник, например "Маньяк", "Мама", "Неизвестный").
+- "sender": имя отправителя, строго одно из двух: "Ты" (главный герой) или другое имя (собеседник).
 - "text": текст сообщения на русском языке. Пиши кратко, живо, как в реальном мессенджере.
-- "typingDelayMs": число (мс), задержка перед показом сообщения (имитация печатания). Для обычных реплик от 1000 до 3000.
-- "mediaPrompt": (необязательно) если реплика подразумевает отправку фото (например: "Смотри, что за окном" или "Я отправил тебе фото..."), укажи детальный промпт для генерации картинки на английском языке. Будь конкретен (например: "A dark scary street, viewed through a dirty window, night time, cinematic lighting, 9:16 aspect ratio"). Максимум 1-2 таких фото во всей истории.
-- "isCliffhanger": (необязательно, boolean) установи true ровно для ОДНОГО сообщения во второй половине диалога (обычно между 5-м и 8-м сообщением), на самом интригующем или пугающем моменте (например, прямо перед или сразу после отправки жуткого фото, или важного сюжетного поворота). Это заблокирует чтение и вызовет paywall.
+- "typingDelayMs": число (мс), задержка (имитация печатания). Для обычных реплик от 1000 до 3000.
+- "isCliffhanger": (необязательно, boolean) установи true ровно для ОДНОГО сообщения во второй половине диалога (обычно между 12-м и 18-м сообщением), на самом кульминационном моменте из сценария. Это заблокирует чтение и вызовет paywall.
 
 Выдай ответ СТРОГО в формате JSON (массив объектов без markdown-разметки):
 [
@@ -120,7 +163,6 @@ function parseAndValidateMessages(rawContent: string): ChatMessage[] {
       sender: typeof raw.sender === 'string' ? raw.sender : (i % 2 === 0 ? 'Ты' : 'Собеседник'),
       text: typeof raw.text === 'string' ? raw.text : '',
       typingDelayMs: typeof raw.typingDelayMs === 'number' ? raw.typingDelayMs : 1500,
-      mediaPrompt: typeof raw.mediaPrompt === 'string' && raw.mediaPrompt ? raw.mediaPrompt : undefined,
       isCliffhanger: typeof raw.isCliffhanger === 'boolean' ? raw.isCliffhanger : undefined,
     };
   });
@@ -180,12 +222,12 @@ export async function POST(request: Request) {
     console.log(`[create] Token deducted: ${user.token_balance} → ${user.token_balance - 1}`);
 
     // ── 2. Generate chat messages script via LLM ─────────────────────────
-    const messages = await generateScript(prompt);
+    const { messages, scenario } = await generateScript(prompt);
 
     // Find first cliffhanger index
     let cliffhangerIndex = messages.findIndex(m => m.isCliffhanger);
-    if (cliffhangerIndex === -1 || cliffhangerIndex < 3) {
-      cliffhangerIndex = Math.min(5, messages.length - 1);
+    if (cliffhangerIndex === -1 || cliffhangerIndex < 5) {
+      cliffhangerIndex = Math.min(15, messages.length - 2);
       if (messages[cliffhangerIndex]) {
         messages[cliffhangerIndex].isCliffhanger = true;
       }
@@ -210,9 +252,10 @@ export async function POST(request: Request) {
     }
 
     // ── 4. Insert episode record with JSONB payload ──────────────────────
-    const payload: ChatEpisodePayload = {
+    const payload: ChatEpisodePayload & { scenario?: string } = {
       messages,
       unlockedTillIndex: cliffhangerIndex,
+      scenario,
     };
 
     const { data: episode, error: epError } = await supabase

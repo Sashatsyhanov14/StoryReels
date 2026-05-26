@@ -3,8 +3,6 @@ export interface ChatMessage {
   sender: string;         // e.g. "Ты", "Маньяк", "Мама"
   text: string;           // Message text content
   typingDelayMs: number;  // Suspension delay for typing animation (e.g. 1500)
-  mediaPrompt?: string;   // Image generation prompt for Flux
-  imageUrl?: string;      // Generated image URL
   isCliffhanger?: boolean; // If true, halts tap progress and opens paywall
 }
 

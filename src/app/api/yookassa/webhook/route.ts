@@ -11,9 +11,10 @@ export async function POST(request: Request) {
       const paymentId = body.object.id;
       const amount = body.object.amount.value;
       const userId = body.object.metadata?.user_id;
+      const episodeId = body.object.metadata?.episode_id;
 
-      if (!userId) {
-        return NextResponse.json({ error: 'User ID not found in metadata' }, { status: 400 });
+      if (!userId || !episodeId) {
+        return NextResponse.json({ error: 'User ID or Episode ID not found in metadata' }, { status: 400 });
       }
 
       const supabase = getSupabaseAdmin();
@@ -50,28 +51,32 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Database error' }, { status: 500 });
       }
 
-      // 2. Increment user token balance
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('token_balance')
-        .eq('id', userId)
+      // 2. Fetch the episode to get the number of messages
+      const { data: episode, error: epError } = await supabase
+        .from('episodes')
+        .select('assets_json')
+        .eq('id', episodeId)
         .single();
 
-      if (userError || !user) {
-        console.error('Error fetching user:', userError);
-        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      if (epError || !episode) {
+        console.error('Error fetching episode:', epError);
+        return NextResponse.json({ error: 'Episode not found' }, { status: 404 });
       }
 
-      const newTokenBalance = (user.token_balance || 0) + 1;
+      // 3. Update unlockedTillIndex inside assets_json
+      const assets = episode.assets_json as any;
+      if (assets && assets.messages) {
+        assets.unlockedTillIndex = assets.messages.length; // unlock all
 
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ token_balance: newTokenBalance })
-        .eq('id', userId);
+        const { error: updateError } = await supabase
+          .from('episodes')
+          .update({ assets_json: assets })
+          .eq('id', episodeId);
 
-      if (updateError) {
-        console.error('Error updating user balance:', updateError);
-        return NextResponse.json({ error: 'Database update error' }, { status: 500 });
+        if (updateError) {
+          console.error('Error updating episode:', updateError);
+          return NextResponse.json({ error: 'Database update error' }, { status: 500 });
+        }
       }
 
       return NextResponse.json({ success: true });
