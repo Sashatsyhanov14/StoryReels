@@ -6,6 +6,11 @@ export interface ChatMessage {
   isCliffhanger?: boolean; // If true, halts tap progress and opens paywall
 }
 
+export interface ChatEpisodePayload {
+  messages: ChatMessage[];
+  unlockedTillIndex: number;
+  scenario?: string;
+}
 export interface ChatEpisode {
   id: string;
   userId: string;
